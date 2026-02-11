@@ -20,6 +20,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (tab === "logs") renderLogs();
       if (tab === "overview") renderOverview();
       if (tab === "settings") loadSettings();
+      if (tab === "monitoring") renderMonitoring();
     });
   });
 
@@ -78,6 +79,13 @@ async function renderOverview() {
   document.getElementById("total-redirects").textContent = redirects.length;
   document.getElementById("total-pastes").textContent = pastes.length;
   document.getElementById("total-continued").textContent = continued.length;
+
+  // Sensitive data alerts
+  const sensitiveAlerts = filtered.filter(
+    (l) => l.type === "sensitive_data_detected",
+  );
+  document.getElementById("total-sensitive").textContent =
+    sensitiveAlerts.length;
 
   // Compliance rate: redirected / (redirected + continued)
   const totalDecisions = redirects.length + continued.length;
@@ -214,6 +222,7 @@ function renderRecentActivity(logs) {
     user_redirected: "🔀 Redirected",
     user_continued_unapproved: "🚫 Continued Unapproved",
     ai_input_interaction: "🎯 Input Interaction",
+    sensitive_data_detected: "🚨 Sensitive Data",
   };
 
   container.innerHTML = logs
@@ -224,6 +233,7 @@ function renderRecentActivity(logs) {
       <div class="activity-detail">
         <strong>${escapeHtml(l.aiToolName || l.domain || "")}</strong>
         ${l.domain ? `<span class="activity-domain">${escapeHtml(l.domain)}</span>` : ""}
+        ${l.detectedTypes ? `<span class="activity-sensitive">${escapeHtml(l.detectedTypes.join(", "))}</span>` : ""}
       </div>
       <div class="activity-time">${formatTime(l.timestamp)}</div>
     </div>
@@ -262,6 +272,7 @@ async function renderLogs() {
     user_redirected: "Redirected",
     user_continued_unapproved: "Continued",
     ai_input_interaction: "Input Interaction",
+    sensitive_data_detected: "Sensitive Data",
   };
 
   const typeBadgeClass = {
@@ -270,6 +281,7 @@ async function renderLogs() {
     user_redirected: "badge-green",
     user_continued_unapproved: "badge-red",
     ai_input_interaction: "badge-purple",
+    sensitive_data_detected: "badge-critical",
   };
 
   tbody.innerHTML = filtered
@@ -283,6 +295,9 @@ async function renderLogs() {
       if (l.contentLength) details.push(`${l.contentLength} chars`);
       if (l.interactionType) details.push(l.interactionType);
       if (l.redirectedTo) details.push(`→ ${l.redirectedTo}`);
+      if (l.detectedTypes)
+        details.push(`Detected: ${l.detectedTypes.join(", ")}`);
+      if (l.severity) details.push(`Severity: ${l.severity}`);
 
       return `
       <tr>
@@ -400,6 +415,178 @@ function setupSettingsListeners() {
 }
 
 // ============================================================
+// Monitoring Levels (Manager-only)
+// ============================================================
+
+async function renderMonitoring() {
+  const { settings = {} } = await chrome.runtime.sendMessage({
+    type: "GET_SETTINGS",
+  });
+  const isManager = settings.userRole === "Manager";
+  const roleBadge = document.getElementById("monitoring-role-badge");
+  const noAccess = document.getElementById("monitoring-no-access");
+  const controls = document.getElementById("monitoring-controls");
+
+  roleBadge.textContent = settings.userRole || "Employee";
+  roleBadge.className =
+    "role-badge " + (isManager ? "role-manager" : "role-employee");
+
+  if (!isManager) {
+    noAccess.style.display = "flex";
+    controls.querySelectorAll("input, select, button").forEach((el) => {
+      el.disabled = true;
+    });
+  } else {
+    noAccess.style.display = "none";
+    controls.querySelectorAll("input, select, button").forEach((el) => {
+      el.disabled = false;
+    });
+  }
+
+  // Load current monitoring config
+  const { monitoringConfig = {} } = await chrome.runtime.sendMessage({
+    type: "GET_MONITORING_CONFIG",
+  });
+
+  const defaultLevel = monitoringConfig.defaultLevel || "lowest";
+  const overrides = monitoringConfig.siteOverrides || {};
+
+  // Set default level radio
+  const radios = document.querySelectorAll('input[name="default-level"]');
+  radios.forEach((r) => {
+    r.checked = r.value === defaultLevel;
+    r.addEventListener("change", async () => {
+      await chrome.runtime.sendMessage({
+        type: "UPDATE_MONITORING_CONFIG",
+        data: { defaultLevel: r.value },
+      });
+      renderMonitoring();
+    });
+  });
+
+  // Render per-site overrides list
+  renderSiteOverrides(overrides, defaultLevel);
+
+  // Populate domain dropdown (only domains not already overridden)
+  populateOverrideDomainSelect(overrides);
+
+  // Render monitoring summary table
+  renderMonitoringSummary(defaultLevel, overrides);
+
+  // Add Override button
+  const addBtn = document.getElementById("add-override-btn");
+  // Remove old listener by cloning
+  const newBtn = addBtn.cloneNode(true);
+  addBtn.parentNode.replaceChild(newBtn, addBtn);
+  newBtn.disabled = !isManager;
+  newBtn.addEventListener("click", async () => {
+    const domain = document.getElementById("override-domain-select").value;
+    const level = document.getElementById("override-level-select").value;
+    if (!domain) return;
+    await chrome.runtime.sendMessage({
+      type: "SET_SITE_MONITORING_LEVEL",
+      domain,
+      level,
+    });
+    renderMonitoring();
+  });
+}
+
+function renderSiteOverrides(overrides, defaultLevel) {
+  const container = document.getElementById("site-overrides-list");
+  const entries = Object.entries(overrides);
+
+  if (entries.length === 0) {
+    container.innerHTML =
+      '<div class="empty-chart">No per-site overrides configured. All sites use the default level.</div>';
+    return;
+  }
+
+  container.innerHTML = entries
+    .map(
+      ([domain, level]) => `
+    <div class="override-row">
+      <div class="override-domain">${escapeHtml(domain)}</div>
+      <span class="badge ${level === "highest" ? "badge-red" : "badge-green"}">${level === "highest" ? "🔴 Highest" : "🟢 Lowest"}</span>
+      <button class="btn btn-danger btn-sm override-remove-btn" data-domain="${escapeHtml(domain)}">Remove</button>
+    </div>
+  `,
+    )
+    .join("");
+
+  // Attach remove handlers
+  container.querySelectorAll(".override-remove-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      await chrome.runtime.sendMessage({
+        type: "SET_SITE_MONITORING_LEVEL",
+        domain: btn.dataset.domain,
+        level: "default",
+      });
+      renderMonitoring();
+    });
+  });
+}
+
+function populateOverrideDomainSelect(overrides) {
+  const select = document.getElementById("override-domain-select");
+  // Get AI_DOMAINS from the config — we'll just fetch them via a message
+  // For simplicity, use a static list that mirrors config.js
+  // We can fetch them or hard-code the known domain list
+  chrome.runtime.sendMessage({ type: "GET_AI_DOMAINS" }, (response) => {
+    const domains = response?.domains || [];
+    select.innerHTML = '<option value="">Select a website…</option>';
+    domains
+      .filter((d) => !overrides[d.domain])
+      .forEach((d) => {
+        const opt = document.createElement("option");
+        opt.value = d.domain;
+        opt.textContent = `${d.name} (${d.domain})`;
+        select.appendChild(opt);
+      });
+  });
+}
+
+function renderMonitoringSummary(defaultLevel, overrides) {
+  const container = document.getElementById("monitoring-summary-table");
+  chrome.runtime.sendMessage({ type: "GET_AI_DOMAINS" }, (response) => {
+    const domains = response?.domains || [];
+    container.innerHTML = `
+      <table class="logs-table monitoring-table">
+        <thead>
+          <tr>
+            <th>AI Tool</th>
+            <th>Domain</th>
+            <th>Category</th>
+            <th>Monitoring Level</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${domains
+            .map((d) => {
+              const effective = overrides[d.domain] || defaultLevel;
+              const isOverridden = !!overrides[d.domain];
+              return `
+              <tr>
+                <td>${escapeHtml(d.name)}</td>
+                <td class="td-domain">${escapeHtml(d.domain)}</td>
+                <td>${escapeHtml(d.category)}</td>
+                <td>
+                  <span class="badge ${effective === "highest" ? "badge-red" : "badge-green"}">
+                    ${effective === "highest" ? "🔴 Highest" : "🟢 Lowest"}
+                  </span>
+                  ${isOverridden ? '<span class="badge badge-gray" style="margin-left:4px;">Override</span>' : ""}
+                </td>
+              </tr>
+            `;
+            })
+            .join("")}
+        </tbody>
+      </table>
+    `;
+  });
+}
+
+// ============================================================
 // Utilities
 // ============================================================
 
@@ -451,9 +638,17 @@ function downloadCsv(logs, filename) {
     "userRole",
     "approved",
     "action",
+    "detectedTypes",
+    "severity",
   ];
   const rows = logs.map((l) =>
-    headers.map((h) => `"${String(l[h] || "").replace(/"/g, '""')}"`).join(","),
+    headers
+      .map((h) => {
+        let val = l[h];
+        if (Array.isArray(val)) val = val.join("; ");
+        return `"${String(val || "").replace(/"/g, '""')}"`;
+      })
+      .join(","),
   );
   const csv = [headers.join(","), ...rows].join("\n");
 

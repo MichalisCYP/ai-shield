@@ -14,6 +14,14 @@ document.addEventListener("DOMContentLoaded", async () => {
   const statVisits = document.getElementById("stat-visits");
   const statRedirects = document.getElementById("stat-redirects");
   const statPastes = document.getElementById("stat-pastes");
+  const statSensitive = document.getElementById("stat-sensitive");
+  const popupMonitoringBadge = document.getElementById(
+    "popup-monitoring-badge",
+  );
+  const popupManagerControls = document.getElementById(
+    "popup-manager-controls",
+  );
+  const popupDefaultLevel = document.getElementById("popup-default-level");
 
   // ---- Load settings ----
   const { settings } = await chrome.runtime.sendMessage({
@@ -53,6 +61,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // ---- Load stats ----
   await loadStats();
+
+  // ---- Load monitoring level ----
+  await loadMonitoringInfo();
 
   // ---- Event listeners ----
 
@@ -125,9 +136,45 @@ document.addEventListener("DOMContentLoaded", async () => {
       (l) => l.type === "user_redirected",
     ).length;
     const pastes = todayLogs.filter((l) => l.type === "paste_detected").length;
+    const sensitive = todayLogs.filter(
+      (l) => l.type === "sensitive_data_detected",
+    ).length;
 
     statVisits.textContent = visits;
     statRedirects.textContent = redirects;
     statPastes.textContent = pastes;
+    statSensitive.textContent = sensitive;
+  }
+
+  async function loadMonitoringInfo() {
+    const { monitoringConfig = {} } = await chrome.runtime.sendMessage({
+      type: "GET_MONITORING_CONFIG",
+    });
+    const level = monitoringConfig.defaultLevel || "lowest";
+
+    // Update badge
+    if (level === "highest") {
+      popupMonitoringBadge.textContent = "🔴 Highest";
+      popupMonitoringBadge.className = "monitoring-badge monitoring-highest";
+    } else {
+      popupMonitoringBadge.textContent = "🟢 Lowest";
+      popupMonitoringBadge.className = "monitoring-badge monitoring-lowest";
+    }
+
+    // If manager, show quick-change control
+    const isManager = settings?.userRole === "Manager";
+    if (isManager) {
+      popupManagerControls.style.display = "flex";
+      popupDefaultLevel.value = level;
+      popupDefaultLevel.addEventListener("change", async () => {
+        await chrome.runtime.sendMessage({
+          type: "UPDATE_MONITORING_CONFIG",
+          data: { defaultLevel: popupDefaultLevel.value },
+        });
+        await loadMonitoringInfo();
+      });
+    } else {
+      popupManagerControls.style.display = "none";
+    }
   }
 });

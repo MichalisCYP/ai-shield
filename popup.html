@@ -58,6 +58,33 @@
           <div class="stat-number" id="stat-pastes">0</div>
           <div class="stat-label">Pastes Flagged</div>
         </div>
+        <div class="stat-card">
+          <div class="stat-number" id="stat-sensitive">0</div>
+          <div class="stat-label">Sensitive Alerts</div>
+        </div>
+      </div>
+
+      <!-- Monitoring Level -->
+      <div class="popup-section">
+        <div id="monitoring-level-display" class="monitoring-badge-row">
+          <span class="monitoring-label">Monitoring:</span>
+          <span
+            id="popup-monitoring-badge"
+            class="monitoring-badge monitoring-lowest"
+            >🟢 Lowest</span
+          >
+        </div>
+        <div
+          id="popup-manager-controls"
+          class="popup-manager-controls"
+          style="display: none"
+        >
+          <label class="popup-level-label">Default Level:</label>
+          <select id="popup-default-level" class="popup-level-select">
+            <option value="lowest">Lowest</option>
+            <option value="highest">Highest</option>
+          </select>
+        </div>
       </div>
 
       <!-- User Info -->

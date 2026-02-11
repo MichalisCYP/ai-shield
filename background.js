@@ -8,13 +8,21 @@ import {
   APPROVED_DOMAINS,
   APPROVED_AI_URL,
   MAX_LOG_ENTRIES,
+  DEFAULT_MONITORING_LEVEL,
+  MONITORING_LEVELS,
+  MANAGER_ROLES,
+  SENSITIVE_DATA_PATTERNS,
 } from "./config.js";
 
 // ---- Initialisation ----
 
 chrome.runtime.onInstalled.addListener(async () => {
   // Initialise storage
-  const existing = await chrome.storage.local.get(["logs", "settings"]);
+  const existing = await chrome.storage.local.get([
+    "logs",
+    "settings",
+    "monitoringConfig",
+  ]);
   if (!existing.logs) {
     await chrome.storage.local.set({ logs: [] });
   }
@@ -25,6 +33,14 @@ chrome.runtime.onInstalled.addListener(async () => {
         userName: "Unknown User",
         userRole: "Employee",
         approvedAiUrl: APPROVED_AI_URL,
+      },
+    });
+  }
+  if (!existing.monitoringConfig) {
+    await chrome.storage.local.set({
+      monitoringConfig: {
+        defaultLevel: DEFAULT_MONITORING_LEVEL,
+        siteOverrides: {}, // { "domain.com": "highest" }
       },
     });
   }
@@ -56,6 +72,24 @@ function isApprovedDomain(url) {
   } catch {
     return false;
   }
+}
+
+// Get effective monitoring level for a domain
+async function getMonitoringLevelForDomain(domain) {
+  const { monitoringConfig = {} } =
+    await chrome.storage.local.get("monitoringConfig");
+  const overrides = monitoringConfig.siteOverrides || {};
+  return (
+    overrides[domain] ||
+    monitoringConfig.defaultLevel ||
+    DEFAULT_MONITORING_LEVEL
+  );
+}
+
+// Check whether the current user has manager privileges
+async function isManager() {
+  const { settings = {} } = await chrome.storage.local.get("settings");
+  return MANAGER_ROLES.includes(settings.userRole);
 }
 
 // ---- Logging ----
@@ -110,16 +144,21 @@ chrome.webNavigation.onCompleted.addListener(async (details) => {
     action: approved ? "allowed" : "pending",
   });
 
+  // Determine monitoring level for this domain
+  const monitoringLevel = await getMonitoringLevelForDomain(aiMatch.domain);
+
   // If unapproved, inject the warning overlay via content script message
   if (!approved) {
+    const warningPayload = {
+      type: "SHOW_WARNING",
+      aiToolName: aiMatch.name,
+      aiCategory: aiMatch.category,
+      domain: aiMatch.domain,
+      approvedAiUrl: settings.approvedAiUrl || APPROVED_AI_URL,
+      monitoringLevel,
+    };
     try {
-      await chrome.tabs.sendMessage(details.tabId, {
-        type: "SHOW_WARNING",
-        aiToolName: aiMatch.name,
-        aiCategory: aiMatch.category,
-        domain: aiMatch.domain,
-        approvedAiUrl: settings.approvedAiUrl || APPROVED_AI_URL,
-      });
+      await chrome.tabs.sendMessage(details.tabId, warningPayload);
     } catch {
       // Content script may not be ready yet; try injecting it
       try {
@@ -134,13 +173,7 @@ chrome.webNavigation.onCompleted.addListener(async (details) => {
         // Try again after brief delay
         setTimeout(async () => {
           try {
-            await chrome.tabs.sendMessage(details.tabId, {
-              type: "SHOW_WARNING",
-              aiToolName: aiMatch.name,
-              aiCategory: aiMatch.category,
-              domain: aiMatch.domain,
-              approvedAiUrl: settings.approvedAiUrl || APPROVED_AI_URL,
-            });
+            await chrome.tabs.sendMessage(details.tabId, warningPayload);
           } catch (e) {
             console.warn("AI Shield: Could not show warning", e);
           }
@@ -149,6 +182,17 @@ chrome.webNavigation.onCompleted.addListener(async (details) => {
         console.warn("AI Shield: Could not inject content script", e);
       }
     }
+  }
+
+  // Send monitoring level to content script (also for approved domains)
+  try {
+    await chrome.tabs.sendMessage(details.tabId, {
+      type: "SET_MONITORING_LEVEL",
+      monitoringLevel,
+      domain: aiMatch.domain,
+    });
+  } catch {
+    // Content script not yet ready — it will request level on init
   }
 });
 
@@ -252,5 +296,98 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       tabId: sender.tab?.id,
     }).then(() => sendResponse({ success: true }));
     return true;
+  }
+
+  // ---- Sensitive data detection (Highest level) ----
+  if (message.type === "SENSITIVE_DATA_DETECTED") {
+    addLog({
+      type: "sensitive_data_detected",
+      domain: message.domain,
+      aiToolName: message.aiToolName,
+      detectedTypes: message.detectedTypes, // e.g. ["Email Address", "SSN"]
+      severity: message.severity,
+      tabId: sender.tab?.id,
+    }).then(() => sendResponse({ success: true }));
+    return true;
+  }
+
+  // ---- Monitoring Config ----
+  if (message.type === "GET_MONITORING_CONFIG") {
+    chrome.storage.local
+      .get("monitoringConfig")
+      .then(({ monitoringConfig = {} }) => {
+        sendResponse({ monitoringConfig });
+      });
+    return true;
+  }
+
+  if (message.type === "UPDATE_MONITORING_CONFIG") {
+    // Only managers can update monitoring config
+    isManager().then(async (allowed) => {
+      if (!allowed) {
+        sendResponse({
+          success: false,
+          error: "Only managers can change monitoring settings.",
+        });
+        return;
+      }
+      const { monitoringConfig = {} } =
+        await chrome.storage.local.get("monitoringConfig");
+      const updated = { ...monitoringConfig, ...message.data };
+      await chrome.storage.local.set({ monitoringConfig: updated });
+      sendResponse({ success: true, monitoringConfig: updated });
+    });
+    return true;
+  }
+
+  if (message.type === "SET_SITE_MONITORING_LEVEL") {
+    isManager().then(async (allowed) => {
+      if (!allowed) {
+        sendResponse({
+          success: false,
+          error: "Only managers can change monitoring settings.",
+        });
+        return;
+      }
+      const { monitoringConfig = {} } =
+        await chrome.storage.local.get("monitoringConfig");
+      const overrides = { ...(monitoringConfig.siteOverrides || {}) };
+      if (
+        message.level === "default" ||
+        message.level === monitoringConfig.defaultLevel
+      ) {
+        delete overrides[message.domain];
+      } else {
+        overrides[message.domain] = message.level;
+      }
+      const updated = { ...monitoringConfig, siteOverrides: overrides };
+      await chrome.storage.local.set({ monitoringConfig: updated });
+      sendResponse({ success: true, monitoringConfig: updated });
+    });
+    return true;
+  }
+
+  if (message.type === "GET_MONITORING_LEVEL_FOR_DOMAIN") {
+    getMonitoringLevelForDomain(message.domain).then((level) => {
+      sendResponse({ level });
+    });
+    return true;
+  }
+
+  if (message.type === "GET_SENSITIVE_PATTERNS") {
+    // Send serialisable pattern list (regexes as strings)
+    const patterns = SENSITIVE_DATA_PATTERNS.map((p) => ({
+      name: p.name,
+      regex: p.regex.source,
+      flags: p.regex.flags,
+      severity: p.severity,
+    }));
+    sendResponse({ patterns });
+    return false;
+  }
+
+  if (message.type === "GET_AI_DOMAINS") {
+    sendResponse({ domains: AI_DOMAINS });
+    return false;
   }
 });

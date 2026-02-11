@@ -255,3 +255,59 @@ input:checked + .slider::before {
 .popup-footer a:hover {
   text-decoration: underline;
 }
+
+/* ---- Monitoring Badge ---- */
+
+.monitoring-badge-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.monitoring-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.monitoring-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.monitoring-lowest {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.monitoring-highest {
+  background: #ffebee;
+  color: #c62828;
+}
+
+.popup-manager-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.popup-level-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #888;
+}
+
+.popup-level-select {
+  padding: 4px 8px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 12px;
+  background: #fff;
+  outline: none;
+}

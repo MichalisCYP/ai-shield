@@ -27,6 +27,9 @@
           <a href="#" class="nav-item active" data-tab="overview">
             <span class="nav-icon">📊</span> Overview
           </a>
+          <a href="#" class="nav-item" data-tab="monitoring">
+            <span class="nav-icon">🛡️</span> Monitoring
+          </a>
           <a href="#" class="nav-item" data-tab="logs">
             <span class="nav-icon">📋</span> Activity Logs
           </a>
@@ -105,6 +108,13 @@
                 <div class="card-label">Compliance Rate</div>
               </div>
             </div>
+            <div class="summary-card card-yellow">
+              <div class="card-icon">🚨</div>
+              <div class="card-data">
+                <div class="card-number" id="total-sensitive">0</div>
+                <div class="card-label">Sensitive Data Alerts</div>
+              </div>
+            </div>
           </div>
 
           <!-- Charts Section -->
@@ -126,6 +136,100 @@
           </div>
         </section>
 
+        <!-- Monitoring Tab (Manager Only) -->
+        <section id="tab-monitoring" class="tab-content">
+          <div class="page-header">
+            <h2>Monitoring Levels</h2>
+            <div id="monitoring-role-badge" class="role-badge"></div>
+          </div>
+
+          <!-- Non-manager notice -->
+          <div
+            id="monitoring-no-access"
+            class="notice-card"
+            style="display: none"
+          >
+            <span class="notice-icon">🔒</span>
+            <div>
+              <strong>Manager access required</strong>
+              <p>
+                Only users with the <em>Manager</em> role can change monitoring
+                levels. Contact your manager to adjust settings.
+              </p>
+            </div>
+          </div>
+
+          <!-- Manager controls -->
+          <div id="monitoring-controls">
+            <div class="settings-card">
+              <h3>Default Monitoring Level</h3>
+              <p class="setting-desc" style="margin-bottom: 12px">
+                This level applies to all monitored AI websites unless
+                overridden below.
+              </p>
+              <div class="monitoring-level-picker">
+                <label class="level-option">
+                  <input
+                    type="radio"
+                    name="default-level"
+                    value="lowest"
+                    checked
+                  />
+                  <div class="level-card">
+                    <div class="level-title">🟢 Lowest</div>
+                    <div class="level-desc">
+                      Logs visits and paste events. No input content scanning.
+                    </div>
+                  </div>
+                </label>
+                <label class="level-option">
+                  <input type="radio" name="default-level" value="highest" />
+                  <div class="level-card">
+                    <div class="level-title">🔴 Highest</div>
+                    <div class="level-desc">
+                      All basic monitoring plus real-time scanning of input for
+                      sensitive data (SSN, credit cards, API keys, etc.).
+                    </div>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <div class="settings-card">
+              <h3>Per-Website Overrides</h3>
+              <p class="setting-desc" style="margin-bottom: 12px">
+                Override the default monitoring level for specific AI websites.
+              </p>
+              <div id="site-overrides-list" class="site-overrides-list"></div>
+              <div class="add-override-row">
+                <select id="override-domain-select" class="override-select">
+                  <option value="">Select a website…</option>
+                </select>
+                <select id="override-level-select" class="override-select">
+                  <option value="lowest">Lowest</option>
+                  <option value="highest">Highest</option>
+                </select>
+                <button id="add-override-btn" class="btn btn-primary">
+                  Add Override
+                </button>
+              </div>
+            </div>
+
+            <!-- Current monitoring level read-only view -->
+            <div class="settings-card">
+              <h3>Active Monitoring Summary</h3>
+              <p class="setting-desc" style="margin-bottom: 12px">
+                Below is the effective monitoring level for each tracked
+                website.
+              </p>
+              <div
+                id="monitoring-summary-table"
+                class="monitoring-summary"
+              ></div>
+            </div>
+          </div>
+        </section>
+
         <!-- Logs Tab -->
         <section id="tab-logs" class="tab-content">
           <div class="page-header">
@@ -140,6 +244,9 @@
                   Continued Unapproved
                 </option>
                 <option value="ai_input_interaction">Input Interactions</option>
+                <option value="sensitive_data_detected">
+                  Sensitive Data Alerts
+                </option>
               </select>
               <button id="export-btn" class="btn btn-primary">
                 📥 Export JSON

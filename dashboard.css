@@ -210,6 +210,9 @@ body {
 .card-teal {
   border-left-color: #1abc9c;
 }
+.card-yellow {
+  border-left-color: #f1c40f;
+}
 
 .card-icon {
   font-size: 28px;
@@ -464,6 +467,11 @@ body {
   background: #f5f5f5;
   color: #616161;
 }
+.badge-critical {
+  background: #ffebee;
+  color: #b71c1c;
+  font-weight: 700;
+}
 
 /* ---- Buttons ---- */
 
@@ -662,4 +670,156 @@ input:checked + .slider::before {
   .summary-cards {
     grid-template-columns: 1fr;
   }
+}
+
+/* ---- Monitoring Tab ---- */
+
+.role-badge {
+  display: inline-block;
+  padding: 4px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.role-manager {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.role-employee {
+  background: #e3f2fd;
+  color: #1565c0;
+}
+
+.notice-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  background: #fff3e0;
+  border: 1px solid #ffcc80;
+  border-left: 4px solid #ff9800;
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.notice-icon {
+  font-size: 28px;
+}
+
+.notice-card p {
+  margin-top: 6px;
+  font-size: 13px;
+  color: #555;
+}
+
+.monitoring-level-picker {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.level-option {
+  cursor: pointer;
+}
+
+.level-option input[type="radio"] {
+  display: none;
+}
+
+.level-card {
+  border: 2px solid #e0e0e0;
+  border-radius: 10px;
+  padding: 20px;
+  transition: all 0.2s;
+  background: #fafafa;
+}
+
+.level-option input[type="radio"]:checked + .level-card {
+  border-color: #1a73e8;
+  background: #e3f2fd;
+  box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.15);
+}
+
+.level-option input[type="radio"]:disabled + .level-card {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.level-title {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 6px;
+  color: #1a1a2e;
+}
+
+.level-desc {
+  font-size: 12px;
+  color: #888;
+  line-height: 1.5;
+}
+
+.site-overrides-list {
+  margin-bottom: 16px;
+}
+
+.override-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.override-row:last-child {
+  border-bottom: none;
+}
+
+.override-domain {
+  flex: 1;
+  font-family: "SF Mono", Monaco, monospace;
+  font-size: 13px;
+  color: #555;
+}
+
+.add-override-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding-top: 12px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.override-select {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 13px;
+  background: #fff;
+  outline: none;
+}
+
+.override-select:first-child {
+  flex: 1;
+}
+
+.btn-sm {
+  padding: 4px 10px;
+  font-size: 11px;
+}
+
+.monitoring-summary {
+  overflow-x: auto;
+}
+
+.monitoring-table {
+  margin-top: 0;
+}
+
+.activity-sensitive {
+  font-size: 11px;
+  color: #c62828;
+  margin-left: 8px;
+  font-weight: 600;
 }

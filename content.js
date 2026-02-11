@@ -16,6 +16,13 @@
   let warningDismissed = false;
   const WARNING_DELAY_MS = 5000; // 5 seconds before user can proceed
 
+  // ---- Monitoring Level State ----
+  let currentMonitoringLevel = "lowest";
+  let sensitivePatterns = []; // [{name, regex: RegExp, severity}]
+  let sensitiveCheckTimer = null;
+  let lastSensitiveAlert = 0; // throttle alerts
+  const SENSITIVE_ALERT_COOLDOWN = 5000; // ms
+
   // ---- AI Input Selectors ----
   // Common selectors for AI prompt input areas across popular tools
   const AI_INPUT_SELECTORS = [
@@ -365,7 +372,165 @@
       createWarningOverlay(message);
       sendResponse({ success: true });
     }
+    if (message.type === "SET_MONITORING_LEVEL") {
+      setMonitoringLevel(message.monitoringLevel);
+      sendResponse({ success: true });
+    }
   });
+
+  // ---- Monitoring Level Handling ----
+
+  function setMonitoringLevel(level) {
+    currentMonitoringLevel = level || "lowest";
+    if (currentMonitoringLevel === "highest") {
+      loadSensitivePatterns();
+      attachInputScanners();
+    }
+  }
+
+  function loadSensitivePatterns() {
+    if (sensitivePatterns.length > 0) return; // already loaded
+    chrome.runtime.sendMessage(
+      { type: "GET_SENSITIVE_PATTERNS" },
+      (response) => {
+        if (response && response.patterns) {
+          sensitivePatterns = response.patterns.map((p) => ({
+            name: p.name,
+            regex: new RegExp(p.regex, p.flags || ""),
+            severity: p.severity,
+          }));
+        }
+      },
+    );
+  }
+
+  // ---- Real-time Input Scanning (Highest level) ----
+
+  function attachInputScanners() {
+    // Watch for input events on AI prompt fields
+    document.addEventListener("input", onInputChange, true);
+    // Also intercept paste at highest level with content scanning
+    document.addEventListener("paste", onPasteHighest, true);
+  }
+
+  function onInputChange(e) {
+    if (currentMonitoringLevel !== "highest") return;
+    const target = e.target;
+    if (!isLikelyAiInput(target)) return;
+
+    // Debounce: scan after user stops typing for 400ms
+    clearTimeout(sensitiveCheckTimer);
+    sensitiveCheckTimer = setTimeout(() => {
+      const text = getElementText(target);
+      if (text.length > 3) {
+        scanForSensitiveData(text);
+      }
+    }, 400);
+  }
+
+  function onPasteHighest(e) {
+    if (currentMonitoringLevel !== "highest") return;
+    const target = e.target;
+    if (!target.matches('textarea, input, [contenteditable="true"]')) return;
+
+    const clipboardData = e.clipboardData;
+    if (!clipboardData) return;
+    const text = clipboardData.getData("text/plain");
+    if (text && text.length > 3) {
+      scanForSensitiveData(text);
+    }
+  }
+
+  function getElementText(el) {
+    if (el.value !== undefined) return el.value;
+    if (el.textContent !== undefined) return el.textContent;
+    return el.innerText || "";
+  }
+
+  function scanForSensitiveData(text) {
+    if (sensitivePatterns.length === 0) return;
+
+    const matches = [];
+    let highestSeverity = "medium";
+    const severityRank = { medium: 0, high: 1, critical: 2 };
+
+    for (const pattern of sensitivePatterns) {
+      if (pattern.regex.test(text)) {
+        matches.push(pattern.name);
+        if (severityRank[pattern.severity] > severityRank[highestSeverity]) {
+          highestSeverity = pattern.severity;
+        }
+      }
+    }
+
+    if (matches.length === 0) return;
+
+    // Throttle alerts
+    const now = Date.now();
+    if (now - lastSensitiveAlert < SENSITIVE_ALERT_COOLDOWN) return;
+    lastSensitiveAlert = now;
+
+    // Show in-page warning
+    showSensitiveDataWarning(matches, highestSeverity);
+
+    // Log via background (no actual content is sent — only type names)
+    chrome.runtime.sendMessage({
+      type: "SENSITIVE_DATA_DETECTED",
+      domain: DOMAIN,
+      aiToolName: aiToolName,
+      detectedTypes: matches,
+      severity: highestSeverity,
+    });
+  }
+
+  function showSensitiveDataWarning(matchedTypes, severity) {
+    // Remove existing warning if any
+    const existing = document.getElementById("ai-shield-sensitive-warning");
+    if (existing) existing.remove();
+
+    const severityColors = {
+      medium: { bg: "#fff3cd", border: "#ffc107", icon: "⚠️" },
+      high: { bg: "#ffe0b2", border: "#ff9800", icon: "🔶" },
+      critical: { bg: "#ffebee", border: "#f44336", icon: "🚨" },
+    };
+    const style = severityColors[severity] || severityColors.medium;
+
+    const warning = document.createElement("div");
+    warning.id = "ai-shield-sensitive-warning";
+    warning.innerHTML = `
+      <div class="ai-shield-sensitive-content" style="
+        background: ${style.bg} !important;
+        border: 1px solid ${style.border} !important;
+        border-left: 4px solid ${style.border} !important;
+      ">
+        <span class="ai-shield-sensitive-icon">${style.icon}</span>
+        <div>
+          <strong>Sensitive data detected!</strong>
+          <br />
+          <small>Detected: ${matchedTypes.join(", ")}</small>
+          <br />
+          <small style="color:#c62828 !important;">Please remove sensitive information before submitting.</small>
+        </div>
+        <button id="ai-shield-sensitive-dismiss">✕</button>
+      </div>
+    `;
+    document.documentElement.appendChild(warning);
+
+    document
+      .getElementById("ai-shield-sensitive-dismiss")
+      .addEventListener("click", () => {
+        warning.classList.add("ai-shield-fade-out");
+        setTimeout(() => warning.remove(), 300);
+      });
+
+    // Auto-dismiss after 10 seconds
+    setTimeout(() => {
+      if (warning.parentElement) {
+        warning.classList.add("ai-shield-fade-out");
+        setTimeout(() => warning.remove(), 300);
+      }
+    }, 10000);
+  }
 
   // ---- Initialise ----
 
@@ -373,8 +538,17 @@
   detectAiInputFields();
   detectEmbeddedAiWidgets();
 
+  // Request monitoring level for this domain from the background
+  chrome.runtime.sendMessage(
+    { type: "GET_MONITORING_LEVEL_FOR_DOMAIN", domain: DOMAIN },
+    (response) => {
+      if (response && response.level) {
+        setMonitoringLevel(response.level);
+      }
+    },
+  );
+
   // Also show warning on initial load if we're on an AI site
-  // (the background script will send SHOW_WARNING, but just in case)
   chrome.runtime.sendMessage(
     {
       type: "CHECK_AI_DOMAIN",
@@ -383,7 +557,6 @@
     (response) => {
       if (response && response.isAi && !response.approved) {
         aiToolName = response.match?.name || aiToolName;
-        // The background will send SHOW_WARNING after navigation completes
       }
     },
   );
