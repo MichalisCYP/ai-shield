@@ -47,6 +47,13 @@ export const AI_DOMAINS = [
   { domain: "www.notion.so", name: "Notion AI", category: "Productivity AI" },
 ];
 
+// ---- Wildcard TLD Patterns ----
+// Any website whose hostname ends with one of these TLDs will be
+// treated as an AI site, even if it is not explicitly listed above.
+export const AI_TLD_PATTERNS = [
+  { tld: ".ai", name: "Unknown .ai Site", category: "AI (TLD match)" },
+];
+
 // The approved AI route – users will be redirected here
 export const APPROVED_AI_URL = "https://openrouter.ai/";
 

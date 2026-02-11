@@ -1,6 +1,5 @@
 /* ============================================================
    AI Shield — Content Script Styles
-   Warning overlay and paste detection UI
    ============================================================ */
 
 /* ---- Full-screen Warning Overlay ---- */
@@ -11,21 +10,21 @@
   left: 0 !important;
   width: 100vw !important;
   height: 100vh !important;
-  background: rgba(0, 0, 0, 0.85) !important;
+  background: rgba(0, 0, 0, 0.6) !important;
   z-index: 2147483647 !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
   font-family:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu,
-    sans-serif !important;
-  animation: aiShieldFadeIn 0.3s ease-out !important;
-  backdrop-filter: blur(8px) !important;
+    -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif !important;
+  animation: aiShieldFadeIn 0.2s ease !important;
+  backdrop-filter: blur(6px) !important;
+  -webkit-font-smoothing: antialiased !important;
 }
 
 #ai-shield-overlay.ai-shield-fade-out {
   opacity: 0 !important;
-  transition: opacity 0.3s ease-out !important;
+  transition: opacity 0.2s ease !important;
 }
 
 @keyframes aiShieldFadeIn {
@@ -41,17 +40,17 @@
 
 #ai-shield-warning-card {
   background: #ffffff !important;
-  border-radius: 16px !important;
-  max-width: 560px !important;
+  border-radius: 12px !important;
+  max-width: 480px !important;
   width: 90vw !important;
-  box-shadow: 0 25px 80px rgba(0, 0, 0, 0.4) !important;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25) !important;
   overflow: hidden !important;
-  animation: aiShieldSlideUp 0.4s ease-out !important;
+  animation: aiShieldSlideUp 0.25s ease !important;
 }
 
 @keyframes aiShieldSlideUp {
   from {
-    transform: translateY(30px);
+    transform: translateY(16px);
     opacity: 0;
   }
   to {
@@ -61,17 +60,18 @@
 }
 
 .ai-shield-header {
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%) !important;
-  padding: 28px 32px !important;
+  background: #1d1d1f !important;
+  padding: 22px 28px !important;
   text-align: center !important;
 }
 
 .ai-shield-header h1 {
-  color: #ffffff !important;
-  font-size: 20px !important;
-  font-weight: 700 !important;
-  margin: 12px 0 0 0 !important;
+  color: #f5f5f7 !important;
+  font-size: 17px !important;
+  font-weight: 600 !important;
+  margin: 10px 0 0 0 !important;
   line-height: 1.3 !important;
+  letter-spacing: -0.01em !important;
 }
 
 .ai-shield-icon {
@@ -80,26 +80,27 @@
 }
 
 .ai-shield-body {
-  padding: 28px 32px !important;
+  padding: 24px 28px !important;
 }
 
 .ai-shield-tool-name {
-  font-size: 16px !important;
-  color: #333 !important;
+  font-size: 15px !important;
+  color: #1d1d1f !important;
+  font-weight: 600 !important;
   margin: 0 0 4px 0 !important;
   text-align: center !important;
 }
 
 .ai-shield-domain {
-  font-size: 13px !important;
-  color: #888 !important;
+  font-size: 12px !important;
+  color: #86868b !important;
   text-align: center !important;
-  margin: 0 0 20px 0 !important;
-  font-family: "SF Mono", Monaco, "Cascadia Code", monospace !important;
-  background: #f5f5f5 !important;
+  margin: 0 0 18px 0 !important;
+  font-family: "SF Mono", Monaco, "Fira Code", monospace !important;
+  background: #f5f5f7 !important;
   display: inline-block !important;
-  padding: 4px 12px !important;
-  border-radius: 6px !important;
+  padding: 3px 10px !important;
+  border-radius: 4px !important;
   width: auto !important;
   margin-left: auto !important;
   margin-right: auto !important;
@@ -109,24 +110,24 @@
   display: block !important;
   text-align: center !important;
   width: fit-content !important;
-  margin: 0 auto 20px auto !important;
+  margin: 0 auto 18px auto !important;
 }
 
 /* ---- Warning Box ---- */
 
 .ai-shield-warning-box {
-  background: #fff8f0 !important;
-  border: 1px solid #f0c27a !important;
-  border-left: 4px solid #e67e22 !important;
-  border-radius: 8px !important;
-  padding: 16px !important;
-  margin-bottom: 24px !important;
+  background: #fef7ec !important;
+  border: 1px solid #e8e8ed !important;
+  border-left: 3px solid #e47312 !important;
+  border-radius: 6px !important;
+  padding: 14px !important;
+  margin-bottom: 20px !important;
 }
 
 .ai-shield-warning-box p {
-  margin: 0 0 8px 0 !important;
-  font-size: 14px !important;
-  color: #555 !important;
+  margin: 0 0 6px 0 !important;
+  font-size: 13px !important;
+  color: #6e6e73 !important;
   line-height: 1.5 !important;
 }
 
@@ -139,88 +140,89 @@
 .ai-shield-actions {
   display: flex !important;
   flex-direction: column !important;
-  gap: 16px !important;
-  margin-bottom: 20px !important;
+  gap: 12px !important;
+  margin-bottom: 18px !important;
 }
 
 .ai-shield-btn {
   display: block !important;
   width: 100% !important;
-  padding: 14px 20px !important;
+  padding: 11px 18px !important;
   border: none !important;
-  border-radius: 10px !important;
-  font-size: 15px !important;
-  font-weight: 600 !important;
+  border-radius: 8px !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
   cursor: pointer !important;
-  transition: all 0.2s ease !important;
+  transition: opacity 0.15s ease !important;
   text-align: center !important;
   font-family: inherit !important;
 }
 
+.ai-shield-btn:active {
+  opacity: 0.7 !important;
+}
+
 .ai-shield-btn-primary {
-  background: linear-gradient(135deg, #1a73e8 0%, #1557b0 100%) !important;
+  background: #0071e3 !important;
   color: #ffffff !important;
-  box-shadow: 0 4px 14px rgba(26, 115, 232, 0.4) !important;
 }
 
 .ai-shield-btn-primary:hover {
-  background: linear-gradient(135deg, #1557b0 0%, #0d47a1 100%) !important;
-  box-shadow: 0 6px 20px rgba(26, 115, 232, 0.5) !important;
-  transform: translateY(-1px) !important;
+  background: #0077ed !important;
 }
 
 .ai-shield-continue-section {
-  background: #f8f9fa !important;
-  border-radius: 10px !important;
-  padding: 16px !important;
-  border: 1px solid #e0e0e0 !important;
+  background: #f5f5f7 !important;
+  border-radius: 8px !important;
+  padding: 14px !important;
+  border: 1px solid #e8e8ed !important;
 }
 
 .ai-shield-checkbox-row {
   display: flex !important;
   align-items: flex-start !important;
-  gap: 10px !important;
-  margin-bottom: 12px !important;
+  gap: 8px !important;
+  margin-bottom: 10px !important;
 }
 
 .ai-shield-checkbox-row input[type="checkbox"] {
-  margin-top: 3px !important;
-  width: 18px !important;
-  height: 18px !important;
+  margin-top: 2px !important;
+  width: 16px !important;
+  height: 16px !important;
   cursor: pointer !important;
-  accent-color: #e74c3c !important;
+  accent-color: #ff3b30 !important;
   flex-shrink: 0 !important;
 }
 
 .ai-shield-checkbox-row label {
   font-size: 13px !important;
-  color: #555 !important;
+  color: #6e6e73 !important;
   line-height: 1.4 !important;
   cursor: pointer !important;
 }
 
 .ai-shield-btn-secondary {
-  background: #e0e0e0 !important;
-  color: #999 !important;
+  background: #e8e8ed !important;
+  color: #aeaeb2 !important;
   cursor: not-allowed !important;
   font-size: 13px !important;
 }
 
 .ai-shield-btn-secondary.ai-shield-btn-enabled {
-  background: #e74c3c !important;
+  background: #ff3b30 !important;
   color: #ffffff !important;
   cursor: pointer !important;
 }
 
 .ai-shield-btn-secondary.ai-shield-btn-enabled:hover {
-  background: #c0392b !important;
+  background: #e0342b !important;
 }
 
 /* ---- Footer note ---- */
 
 .ai-shield-footer-note {
   font-size: 11px !important;
-  color: #aaa !important;
+  color: #aeaeb2 !important;
   text-align: center !important;
   margin: 0 !important;
   line-height: 1.4 !important;
@@ -230,21 +232,21 @@
 
 #ai-shield-paste-warning {
   position: fixed !important;
-  bottom: 24px !important;
-  right: 24px !important;
+  bottom: 20px !important;
+  right: 20px !important;
   z-index: 2147483646 !important;
-  animation: aiShieldSlideIn 0.3s ease-out !important;
+  animation: aiShieldSlideIn 0.2s ease !important;
 }
 
 #ai-shield-paste-warning.ai-shield-fade-out {
   opacity: 0 !important;
-  transform: translateX(20px) !important;
-  transition: all 0.3s ease-out !important;
+  transform: translateX(12px) !important;
+  transition: all 0.2s ease !important;
 }
 
 @keyframes aiShieldSlideIn {
   from {
-    transform: translateX(40px);
+    transform: translateX(24px);
     opacity: 0;
   }
   to {
@@ -256,45 +258,48 @@
 .ai-shield-paste-content {
   display: flex !important;
   align-items: center !important;
-  gap: 12px !important;
-  background: #fff3cd !important;
-  border: 1px solid #ffc107 !important;
-  border-left: 4px solid #ff9800 !important;
-  border-radius: 10px !important;
-  padding: 14px 18px !important;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15) !important;
-  max-width: 380px !important;
+  gap: 10px !important;
+  background: #fff !important;
+  border: 1px solid #e8e8ed !important;
+  border-left: 3px solid #e47312 !important;
+  border-radius: 8px !important;
+  padding: 12px 16px !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1) !important;
+  max-width: 360px !important;
   font-family:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+    -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif !important;
 }
 
 .ai-shield-paste-icon {
-  font-size: 24px !important;
+  font-size: 20px !important;
   flex-shrink: 0 !important;
+  line-height: 1 !important;
 }
 
 .ai-shield-paste-content strong {
-  font-size: 14px !important;
-  color: #333 !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: #1d1d1f !important;
 }
 
 .ai-shield-paste-content small {
   font-size: 12px !important;
-  color: #666 !important;
+  color: #86868b !important;
 }
 
 #ai-shield-paste-dismiss {
   background: none !important;
   border: none !important;
-  font-size: 18px !important;
+  font-size: 16px !important;
   cursor: pointer !important;
-  color: #999 !important;
-  padding: 4px !important;
+  color: #aeaeb2 !important;
+  padding: 2px !important;
   flex-shrink: 0 !important;
+  transition: color 0.15s ease !important;
 }
 
 #ai-shield-paste-dismiss:hover {
-  color: #333 !important;
+  color: #1d1d1f !important;
 }
 
 /* ---- Sensitive Data Warning ---- */
@@ -302,54 +307,60 @@
 #ai-shield-sensitive-warning {
   position: fixed !important;
   top: 16px !important;
-  right: 24px !important;
+  right: 20px !important;
   z-index: 2147483646 !important;
-  animation: aiShieldSlideIn 0.3s ease-out !important;
+  animation: aiShieldSlideIn 0.2s ease !important;
 }
 
 #ai-shield-sensitive-warning.ai-shield-fade-out {
   opacity: 0 !important;
-  transform: translateX(20px) !important;
-  transition: all 0.3s ease-out !important;
+  transform: translateX(12px) !important;
+  transition: all 0.2s ease !important;
 }
 
 .ai-shield-sensitive-content {
   display: flex !important;
   align-items: center !important;
-  gap: 12px !important;
-  border-radius: 10px !important;
-  padding: 14px 18px !important;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2) !important;
-  max-width: 420px !important;
+  gap: 10px !important;
+  background: #fff !important;
+  border: 1px solid #e8e8ed !important;
+  border-left: 3px solid #ff3b30 !important;
+  border-radius: 8px !important;
+  padding: 12px 16px !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1) !important;
+  max-width: 400px !important;
   font-family:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+    -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif !important;
 }
 
 .ai-shield-sensitive-icon {
-  font-size: 28px !important;
+  font-size: 22px !important;
   flex-shrink: 0 !important;
+  line-height: 1 !important;
 }
 
 .ai-shield-sensitive-content strong {
-  font-size: 14px !important;
-  color: #333 !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: #1d1d1f !important;
 }
 
 .ai-shield-sensitive-content small {
   font-size: 12px !important;
-  color: #666 !important;
+  color: #86868b !important;
 }
 
 #ai-shield-sensitive-dismiss {
   background: none !important;
   border: none !important;
-  font-size: 18px !important;
+  font-size: 16px !important;
   cursor: pointer !important;
-  color: #999 !important;
-  padding: 4px !important;
+  color: #aeaeb2 !important;
+  padding: 2px !important;
   flex-shrink: 0 !important;
+  transition: color 0.15s ease !important;
 }
 
 #ai-shield-sensitive-dismiss:hover {
-  color: #333 !important;
+  color: #1d1d1f !important;
 }

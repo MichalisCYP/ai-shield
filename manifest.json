@@ -59,7 +59,8 @@
     "https://grok.x.ai/*",
     "https://labs.google/*",
     "https://aistudio.google.com/*",
-    "https://openrouter.ai/*"
+    "https://openrouter.ai/*",
+    "https://*.ai/*"
   ],
   "content_scripts": [
     {
@@ -91,7 +92,8 @@
         "https://inflection.ai/*",
         "https://grok.x.ai/*",
         "https://labs.google/*",
-        "https://aistudio.google.com/*"
+        "https://aistudio.google.com/*",
+        "https://*.ai/*"
       ],
       "js": ["content.js"],
       "css": ["content.css"],

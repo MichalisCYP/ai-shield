@@ -5,6 +5,7 @@
 
 import {
   AI_DOMAINS,
+  AI_TLD_PATTERNS,
   APPROVED_DOMAINS,
   APPROVED_AI_URL,
   MAX_LOG_ENTRIES,
@@ -55,9 +56,23 @@ chrome.runtime.onInstalled.addListener(async () => {
 function matchAiDomain(url) {
   try {
     const hostname = new URL(url).hostname;
-    return AI_DOMAINS.find(
+    // 1. Check explicit domain list first
+    const explicit = AI_DOMAINS.find(
       (d) => hostname === d.domain || hostname.endsWith("." + d.domain),
     );
+    if (explicit) return explicit;
+
+    // 2. Fall back to TLD wildcard patterns (e.g. any .ai domain)
+    const tldMatch = AI_TLD_PATTERNS.find((p) => hostname.endsWith(p.tld));
+    if (tldMatch) {
+      return {
+        domain: hostname,
+        name: tldMatch.name,
+        category: tldMatch.category,
+      };
+    }
+
+    return null;
   } catch {
     return null;
   }
