@@ -1,0 +1,298 @@
+/* ============================================================
+   AI Shield — Content Script Styles
+   Warning overlay and paste detection UI
+   ============================================================ */
+
+/* ---- Full-screen Warning Overlay ---- */
+
+#ai-shield-overlay {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  background: rgba(0, 0, 0, 0.85) !important;
+  z-index: 2147483647 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu,
+    sans-serif !important;
+  animation: aiShieldFadeIn 0.3s ease-out !important;
+  backdrop-filter: blur(8px) !important;
+}
+
+#ai-shield-overlay.ai-shield-fade-out {
+  opacity: 0 !important;
+  transition: opacity 0.3s ease-out !important;
+}
+
+@keyframes aiShieldFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ---- Warning Card ---- */
+
+#ai-shield-warning-card {
+  background: #ffffff !important;
+  border-radius: 16px !important;
+  max-width: 560px !important;
+  width: 90vw !important;
+  box-shadow: 0 25px 80px rgba(0, 0, 0, 0.4) !important;
+  overflow: hidden !important;
+  animation: aiShieldSlideUp 0.4s ease-out !important;
+}
+
+@keyframes aiShieldSlideUp {
+  from {
+    transform: translateY(30px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.ai-shield-header {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%) !important;
+  padding: 28px 32px !important;
+  text-align: center !important;
+}
+
+.ai-shield-header h1 {
+  color: #ffffff !important;
+  font-size: 20px !important;
+  font-weight: 700 !important;
+  margin: 12px 0 0 0 !important;
+  line-height: 1.3 !important;
+}
+
+.ai-shield-icon {
+  display: flex !important;
+  justify-content: center !important;
+}
+
+.ai-shield-body {
+  padding: 28px 32px !important;
+}
+
+.ai-shield-tool-name {
+  font-size: 16px !important;
+  color: #333 !important;
+  margin: 0 0 4px 0 !important;
+  text-align: center !important;
+}
+
+.ai-shield-domain {
+  font-size: 13px !important;
+  color: #888 !important;
+  text-align: center !important;
+  margin: 0 0 20px 0 !important;
+  font-family: "SF Mono", Monaco, "Cascadia Code", monospace !important;
+  background: #f5f5f5 !important;
+  display: inline-block !important;
+  padding: 4px 12px !important;
+  border-radius: 6px !important;
+  width: auto !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+.ai-shield-body > .ai-shield-domain {
+  display: block !important;
+  text-align: center !important;
+  width: fit-content !important;
+  margin: 0 auto 20px auto !important;
+}
+
+/* ---- Warning Box ---- */
+
+.ai-shield-warning-box {
+  background: #fff8f0 !important;
+  border: 1px solid #f0c27a !important;
+  border-left: 4px solid #e67e22 !important;
+  border-radius: 8px !important;
+  padding: 16px !important;
+  margin-bottom: 24px !important;
+}
+
+.ai-shield-warning-box p {
+  margin: 0 0 8px 0 !important;
+  font-size: 14px !important;
+  color: #555 !important;
+  line-height: 1.5 !important;
+}
+
+.ai-shield-warning-box p:last-child {
+  margin-bottom: 0 !important;
+}
+
+/* ---- Action Buttons ---- */
+
+.ai-shield-actions {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 16px !important;
+  margin-bottom: 20px !important;
+}
+
+.ai-shield-btn {
+  display: block !important;
+  width: 100% !important;
+  padding: 14px 20px !important;
+  border: none !important;
+  border-radius: 10px !important;
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  text-align: center !important;
+  font-family: inherit !important;
+}
+
+.ai-shield-btn-primary {
+  background: linear-gradient(135deg, #1a73e8 0%, #1557b0 100%) !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 14px rgba(26, 115, 232, 0.4) !important;
+}
+
+.ai-shield-btn-primary:hover {
+  background: linear-gradient(135deg, #1557b0 0%, #0d47a1 100%) !important;
+  box-shadow: 0 6px 20px rgba(26, 115, 232, 0.5) !important;
+  transform: translateY(-1px) !important;
+}
+
+.ai-shield-continue-section {
+  background: #f8f9fa !important;
+  border-radius: 10px !important;
+  padding: 16px !important;
+  border: 1px solid #e0e0e0 !important;
+}
+
+.ai-shield-checkbox-row {
+  display: flex !important;
+  align-items: flex-start !important;
+  gap: 10px !important;
+  margin-bottom: 12px !important;
+}
+
+.ai-shield-checkbox-row input[type="checkbox"] {
+  margin-top: 3px !important;
+  width: 18px !important;
+  height: 18px !important;
+  cursor: pointer !important;
+  accent-color: #e74c3c !important;
+  flex-shrink: 0 !important;
+}
+
+.ai-shield-checkbox-row label {
+  font-size: 13px !important;
+  color: #555 !important;
+  line-height: 1.4 !important;
+  cursor: pointer !important;
+}
+
+.ai-shield-btn-secondary {
+  background: #e0e0e0 !important;
+  color: #999 !important;
+  cursor: not-allowed !important;
+  font-size: 13px !important;
+}
+
+.ai-shield-btn-secondary.ai-shield-btn-enabled {
+  background: #e74c3c !important;
+  color: #ffffff !important;
+  cursor: pointer !important;
+}
+
+.ai-shield-btn-secondary.ai-shield-btn-enabled:hover {
+  background: #c0392b !important;
+}
+
+/* ---- Footer note ---- */
+
+.ai-shield-footer-note {
+  font-size: 11px !important;
+  color: #aaa !important;
+  text-align: center !important;
+  margin: 0 !important;
+  line-height: 1.4 !important;
+}
+
+/* ---- Paste Warning Toast ---- */
+
+#ai-shield-paste-warning {
+  position: fixed !important;
+  bottom: 24px !important;
+  right: 24px !important;
+  z-index: 2147483646 !important;
+  animation: aiShieldSlideIn 0.3s ease-out !important;
+}
+
+#ai-shield-paste-warning.ai-shield-fade-out {
+  opacity: 0 !important;
+  transform: translateX(20px) !important;
+  transition: all 0.3s ease-out !important;
+}
+
+@keyframes aiShieldSlideIn {
+  from {
+    transform: translateX(40px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.ai-shield-paste-content {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  background: #fff3cd !important;
+  border: 1px solid #ffc107 !important;
+  border-left: 4px solid #ff9800 !important;
+  border-radius: 10px !important;
+  padding: 14px 18px !important;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15) !important;
+  max-width: 380px !important;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+}
+
+.ai-shield-paste-icon {
+  font-size: 24px !important;
+  flex-shrink: 0 !important;
+}
+
+.ai-shield-paste-content strong {
+  font-size: 14px !important;
+  color: #333 !important;
+}
+
+.ai-shield-paste-content small {
+  font-size: 12px !important;
+  color: #666 !important;
+}
+
+#ai-shield-paste-dismiss {
+  background: none !important;
+  border: none !important;
+  font-size: 18px !important;
+  cursor: pointer !important;
+  color: #999 !important;
+  padding: 4px !important;
+  flex-shrink: 0 !important;
+}
+
+#ai-shield-paste-dismiss:hover {
+  color: #333 !important;
+}

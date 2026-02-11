@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Shield</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <div class="popup-container">
+      <!-- Header -->
+      <div class="popup-header">
+        <div class="popup-logo">
+          <svg
+            width="28"
+            height="28"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="#fff"
+            stroke-width="2"
+          >
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+          </svg>
+          <h1>AI Shield</h1>
+        </div>
+        <div class="popup-toggle">
+          <label class="switch">
+            <input type="checkbox" id="enabled-toggle" checked />
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Current Page Status -->
+      <div id="status-section" class="popup-section">
+        <div id="status-indicator" class="status-card status-safe">
+          <div class="status-icon" id="status-icon">✅</div>
+          <div class="status-text">
+            <div id="status-title" class="status-title">Safe</div>
+            <div id="status-detail" class="status-detail">
+              This page is not a known AI tool.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Stats -->
+      <div class="popup-section stats-section">
+        <div class="stat-card">
+          <div class="stat-number" id="stat-visits">0</div>
+          <div class="stat-label">AI Visits Today</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" id="stat-redirects">0</div>
+          <div class="stat-label">Redirected</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" id="stat-pastes">0</div>
+          <div class="stat-label">Pastes Flagged</div>
+        </div>
+      </div>
+
+      <!-- User Info -->
+      <div class="popup-section">
+        <div class="input-group">
+          <label for="user-name">Your Name</label>
+          <input type="text" id="user-name" placeholder="Enter your name" />
+        </div>
+        <div class="input-group">
+          <label for="user-role">Your Role</label>
+          <select id="user-role">
+            <option value="Employee">Employee</option>
+            <option value="Manager">Manager</option>
+            <option value="Developer">Developer</option>
+            <option value="Analyst">Analyst</option>
+            <option value="Executive">Executive</option>
+            <option value="Contractor">Contractor</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="popup-section popup-actions">
+        <button id="open-dashboard-btn" class="popup-btn popup-btn-primary">
+          📊 View Dashboard
+        </button>
+        <button id="redirect-btn" class="popup-btn popup-btn-secondary">
+          🔒 Open Approved AI
+        </button>
+      </div>
+
+      <!-- Footer -->
+      <div class="popup-footer">
+        <span>AI Shield v1.0</span>
+        <span>·</span>
+        <a href="#" id="export-logs-link">Export Logs</a>
+      </div>
+    </div>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

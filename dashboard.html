@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Shield — Security Dashboard</title>
+    <link rel="stylesheet" href="dashboard.css" />
+  </head>
+  <body>
+    <div class="dashboard">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <div class="sidebar-header">
+          <svg
+            width="32"
+            height="32"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="#fff"
+            stroke-width="2"
+          >
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+          </svg>
+          <h1>AI Shield</h1>
+        </div>
+        <nav class="sidebar-nav">
+          <a href="#" class="nav-item active" data-tab="overview">
+            <span class="nav-icon">📊</span> Overview
+          </a>
+          <a href="#" class="nav-item" data-tab="logs">
+            <span class="nav-icon">📋</span> Activity Logs
+          </a>
+          <a href="#" class="nav-item" data-tab="settings">
+            <span class="nav-icon">⚙️</span> Settings
+          </a>
+        </nav>
+        <div class="sidebar-footer">
+          <div class="user-info">
+            <div class="user-avatar" id="sidebar-avatar">?</div>
+            <div>
+              <div class="user-name" id="sidebar-user-name">Loading...</div>
+              <div class="user-role" id="sidebar-user-role">Employee</div>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="main-content">
+        <!-- Overview Tab -->
+        <section id="tab-overview" class="tab-content active">
+          <div class="page-header">
+            <h2>Security Overview</h2>
+            <div class="header-actions">
+              <select id="time-filter">
+                <option value="today">Today</option>
+                <option value="week">This Week</option>
+                <option value="month">This Month</option>
+                <option value="all">All Time</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Summary Cards -->
+          <div class="summary-cards">
+            <div class="summary-card card-blue">
+              <div class="card-icon">🌐</div>
+              <div class="card-data">
+                <div class="card-number" id="total-visits">0</div>
+                <div class="card-label">AI Domain Visits</div>
+              </div>
+            </div>
+            <div class="summary-card card-orange">
+              <div class="card-icon">⚠️</div>
+              <div class="card-data">
+                <div class="card-number" id="total-warnings">0</div>
+                <div class="card-label">Warnings Shown</div>
+              </div>
+            </div>
+            <div class="summary-card card-green">
+              <div class="card-icon">🔀</div>
+              <div class="card-data">
+                <div class="card-number" id="total-redirects">0</div>
+                <div class="card-label">Users Redirected</div>
+              </div>
+            </div>
+            <div class="summary-card card-red">
+              <div class="card-icon">📋</div>
+              <div class="card-data">
+                <div class="card-number" id="total-pastes">0</div>
+                <div class="card-label">Paste Events</div>
+              </div>
+            </div>
+            <div class="summary-card card-purple">
+              <div class="card-icon">🚫</div>
+              <div class="card-data">
+                <div class="card-number" id="total-continued">0</div>
+                <div class="card-label">Continued Anyway</div>
+              </div>
+            </div>
+            <div class="summary-card card-teal">
+              <div class="card-icon">🎯</div>
+              <div class="card-data">
+                <div class="card-number" id="compliance-rate">0%</div>
+                <div class="card-label">Compliance Rate</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Charts Section -->
+          <div class="charts-row">
+            <div class="chart-card">
+              <h3>Top AI Tools Accessed</h3>
+              <div id="top-tools-chart" class="chart-content"></div>
+            </div>
+            <div class="chart-card">
+              <h3>Activity by Category</h3>
+              <div id="category-chart" class="chart-content"></div>
+            </div>
+          </div>
+
+          <!-- Recent Activity -->
+          <div class="chart-card">
+            <h3>Recent Activity</h3>
+            <div id="recent-activity" class="activity-list"></div>
+          </div>
+        </section>
+
+        <!-- Logs Tab -->
+        <section id="tab-logs" class="tab-content">
+          <div class="page-header">
+            <h2>Activity Logs</h2>
+            <div class="header-actions">
+              <select id="log-type-filter">
+                <option value="all">All Events</option>
+                <option value="ai_domain_visit">Domain Visits</option>
+                <option value="paste_detected">Paste Events</option>
+                <option value="user_redirected">Redirects</option>
+                <option value="user_continued_unapproved">
+                  Continued Unapproved
+                </option>
+                <option value="ai_input_interaction">Input Interactions</option>
+              </select>
+              <button id="export-btn" class="btn btn-primary">
+                📥 Export JSON
+              </button>
+              <button id="export-csv-btn" class="btn btn-secondary">
+                📄 Export CSV
+              </button>
+              <button id="clear-logs-btn" class="btn btn-danger">
+                🗑️ Clear Logs
+              </button>
+            </div>
+          </div>
+
+          <div class="logs-table-wrapper">
+            <table class="logs-table">
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>Type</th>
+                  <th>AI Tool</th>
+                  <th>Domain</th>
+                  <th>User</th>
+                  <th>Details</th>
+                </tr>
+              </thead>
+              <tbody id="logs-tbody">
+                <tr>
+                  <td colspan="6" class="empty-state">No logs yet.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Settings Tab -->
+        <section id="tab-settings" class="tab-content">
+          <div class="page-header">
+            <h2>Settings</h2>
+          </div>
+
+          <div class="settings-grid">
+            <div class="settings-card">
+              <h3>Extension Status</h3>
+              <div class="setting-row">
+                <div>
+                  <label>Enable AI Shield</label>
+                  <p class="setting-desc">
+                    When disabled, no monitoring or warnings will occur.
+                  </p>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="setting-enabled" checked />
+                  <span class="slider"></span>
+                </label>
+              </div>
+            </div>
+
+            <div class="settings-card">
+              <h3>User Identity</h3>
+              <div class="setting-row">
+                <div class="setting-input-group">
+                  <label for="setting-user-name">Name</label>
+                  <input
+                    type="text"
+                    id="setting-user-name"
+                    placeholder="Your name"
+                  />
+                </div>
+              </div>
+              <div class="setting-row">
+                <div class="setting-input-group">
+                  <label for="setting-user-role">Role</label>
+                  <select id="setting-user-role">
+                    <option value="Employee">Employee</option>
+                    <option value="Manager">Manager</option>
+                    <option value="Developer">Developer</option>
+                    <option value="Analyst">Analyst</option>
+                    <option value="Executive">Executive</option>
+                    <option value="Contractor">Contractor</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div class="settings-card">
+              <h3>Approved AI Redirect</h3>
+              <div class="setting-row">
+                <div class="setting-input-group">
+                  <label for="setting-approved-url">Approved AI URL</label>
+                  <input
+                    type="url"
+                    id="setting-approved-url"
+                    placeholder="https://openrouter.ai/"
+                  />
+                  <p class="setting-desc">
+                    Users will be redirected to this URL when choosing the
+                    approved AI option.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div class="settings-card">
+              <h3>Data Management</h3>
+              <div class="setting-row">
+                <div>
+                  <label>Log Storage</label>
+                  <p class="setting-desc">
+                    Logs are stored locally in the browser. Max 10,000 entries.
+                  </p>
+                  <p class="setting-desc" id="log-count-display">
+                    Current entries: 0
+                  </p>
+                </div>
+                <button id="setting-clear-logs" class="btn btn-danger">
+                  Clear All Logs
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="dashboard.js"></script>
+  </body>
+</html>

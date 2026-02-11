@@ -1,0 +1,107 @@
+{
+  "manifest_version": 3,
+  "name": "AI Shield",
+  "description": "Guides employees toward safer AI usage by detecting unapproved AI tools, prompting confirmation, and logging metadata for security teams.",
+  "version": "1.0.0",
+  "icons": {
+    "16": "images/icon-16.png",
+    "32": "images/icon-32.png",
+    "48": "images/icon-48.png",
+    "128": "images/icon-128.png"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "images/icon-16.png",
+      "32": "images/icon-32.png",
+      "48": "images/icon-48.png",
+      "128": "images/icon-128.png"
+    }
+  },
+  "permissions": [
+    "activeTab",
+    "tabs",
+    "storage",
+    "webNavigation",
+    "notifications",
+    "identity"
+  ],
+  "host_permissions": [
+    "https://chat.openai.com/*",
+    "https://chatgpt.com/*",
+    "https://claude.ai/*",
+    "https://gemini.google.com/*",
+    "https://bard.google.com/*",
+    "https://copilot.microsoft.com/*",
+    "https://huggingface.co/*",
+    "https://chat.mistral.ai/*",
+    "https://poe.com/*",
+    "https://perplexity.ai/*",
+    "https://www.perplexity.ai/*",
+    "https://you.com/*",
+    "https://pi.ai/*",
+    "https://deepseek.com/*",
+    "https://chat.deepseek.com/*",
+    "https://writesonic.com/*",
+    "https://jasper.ai/*",
+    "https://app.jasper.ai/*",
+    "https://rytr.me/*",
+    "https://notion.so/*",
+    "https://www.notion.so/*",
+    "https://character.ai/*",
+    "https://beta.character.ai/*",
+    "https://replika.com/*",
+    "https://inflection.ai/*",
+    "https://grok.x.ai/*",
+    "https://labs.google/*",
+    "https://aistudio.google.com/*",
+    "https://openrouter.ai/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://chat.openai.com/*",
+        "https://chatgpt.com/*",
+        "https://claude.ai/*",
+        "https://gemini.google.com/*",
+        "https://bard.google.com/*",
+        "https://copilot.microsoft.com/*",
+        "https://huggingface.co/*",
+        "https://chat.mistral.ai/*",
+        "https://poe.com/*",
+        "https://perplexity.ai/*",
+        "https://www.perplexity.ai/*",
+        "https://you.com/*",
+        "https://pi.ai/*",
+        "https://deepseek.com/*",
+        "https://chat.deepseek.com/*",
+        "https://writesonic.com/*",
+        "https://jasper.ai/*",
+        "https://app.jasper.ai/*",
+        "https://rytr.me/*",
+        "https://notion.so/*",
+        "https://www.notion.so/*",
+        "https://character.ai/*",
+        "https://beta.character.ai/*",
+        "https://replika.com/*",
+        "https://inflection.ai/*",
+        "https://grok.x.ai/*",
+        "https://labs.google/*",
+        "https://aistudio.google.com/*"
+      ],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["images/*", "warning.html", "dashboard.html"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}
