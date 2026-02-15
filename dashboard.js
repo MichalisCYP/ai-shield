@@ -4,6 +4,21 @@
 // ============================================================
 
 document.addEventListener("DOMContentLoaded", async () => {
+  // ---- Policy Modal ----
+  const policyModal = document.getElementById("policy-modal");
+  const policyAgreeBtn = document.getElementById("policy-agree-btn");
+  // Check acknowledgement status
+  chrome.storage.local
+    .get("policyAcknowledged")
+    .then(({ policyAcknowledged }) => {
+      if (!policyAcknowledged) {
+        policyModal.style.display = "flex";
+      }
+    });
+  policyAgreeBtn?.addEventListener("click", () => {
+    chrome.storage.local.set({ policyAcknowledged: true });
+    policyModal.style.display = "none";
+  });
   // ---- Tab Navigation ----
   const navItems = document.querySelectorAll(".nav-item");
   const tabContents = document.querySelectorAll(".tab-content");
@@ -419,6 +434,72 @@ function setupSettingsListeners() {
 // ============================================================
 
 async function renderMonitoring() {
+  // Custom Domain Management
+  const customDomainInput = document.getElementById("custom-domain-input");
+  const customDomainNameInput = document.getElementById(
+    "custom-domain-name-input",
+  );
+  const customDomainCategoryInput = document.getElementById(
+    "custom-domain-category-input",
+  );
+  const addCustomDomainBtn = document.getElementById("add-custom-domain-btn");
+  const customDomainsList = document.getElementById("custom-domains-list");
+
+  // Fetch custom domains from storage
+  let customDomains = [];
+  chrome.storage.local
+    .get("customDomains")
+    .then(({ customDomains: stored }) => {
+      customDomains = stored || [];
+      renderCustomDomainsList();
+    });
+
+  addCustomDomainBtn.addEventListener("click", async () => {
+    const domain = customDomainInput.value.trim();
+    const name = customDomainNameInput.value.trim();
+    const category = customDomainCategoryInput.value.trim();
+    if (!domain || !name || !category) return;
+    customDomains.push({ domain, name, category });
+    await chrome.storage.local.set({ customDomains });
+    customDomainInput.value = "";
+    customDomainNameInput.value = "";
+    customDomainCategoryInput.value = "";
+    renderCustomDomainsList();
+    // Optionally: refresh domain dropdowns
+    renderMonitoring();
+  });
+
+  function renderCustomDomainsList() {
+    if (!customDomainsList) return;
+    if (customDomains.length === 0) {
+      customDomainsList.innerHTML =
+        '<div class="empty-chart">No custom domains added.</div>';
+      return;
+    }
+    customDomainsList.innerHTML = customDomains
+      .map(
+        (d, idx) => `
+          <div class="override-row">
+            <div class="override-domain">${escapeHtml(d.domain)}</div>
+            <span class="badge badge-blue">${escapeHtml(d.name)}</span>
+            <span class="badge badge-gray">${escapeHtml(d.category)}</span>
+            <button class="btn btn-danger btn-sm remove-custom-domain-btn" data-idx="${idx}">Remove</button>
+          </div>
+        `,
+      )
+      .join("");
+    customDomainsList
+      .querySelectorAll(".remove-custom-domain-btn")
+      .forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const idx = parseInt(btn.dataset.idx);
+          customDomains.splice(idx, 1);
+          await chrome.storage.local.set({ customDomains });
+          renderCustomDomainsList();
+          renderMonitoring();
+        });
+      });
+  }
   const { settings = {} } = await chrome.runtime.sendMessage({
     type: "GET_SETTINGS",
   });

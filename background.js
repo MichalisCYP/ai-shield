@@ -56,7 +56,9 @@ chrome.runtime.onInstalled.addListener(async () => {
 function matchAiDomain(url) {
   try {
     const hostname = new URL(url).hostname;
-    // 1. Check explicit domain list first
+    // Merge custom domains from storage
+    // This is async, so we need to handle it in the message handler
+    // For sync use, fallback to AI_DOMAINS only
     const explicit = AI_DOMAINS.find(
       (d) => hostname === d.domain || hostname.endsWith("." + d.domain),
     );
@@ -262,10 +264,37 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.type === "CHECK_AI_DOMAIN") {
-    const match = matchAiDomain(message.url);
-    const approved = match ? isApprovedDomain(message.url) : false;
-    sendResponse({ isAi: !!match, match, approved });
-    return false;
+    chrome.storage.local.get("customDomains").then(({ customDomains = [] }) => {
+      const allDomains = [...AI_DOMAINS, ...customDomains];
+      const hostname = (() => {
+        try {
+          return new URL(message.url).hostname;
+        } catch {
+          return null;
+        }
+      })();
+      let match = null;
+      if (hostname) {
+        match = allDomains.find(
+          (d) => hostname === d.domain || hostname.endsWith("." + d.domain),
+        );
+        if (!match) {
+          const tldMatch = AI_TLD_PATTERNS.find((p) =>
+            hostname.endsWith(p.tld),
+          );
+          if (tldMatch) {
+            match = {
+              domain: hostname,
+              name: tldMatch.name,
+              category: tldMatch.category,
+            };
+          }
+        }
+      }
+      const approved = match ? isApprovedDomain(message.url) : false;
+      sendResponse({ isAi: !!match, match, approved });
+    });
+    return true;
   }
 
   if (message.type === "USER_CONTINUED") {
@@ -402,7 +431,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.type === "GET_AI_DOMAINS") {
-    sendResponse({ domains: AI_DOMAINS });
-    return false;
+    chrome.storage.local.get("customDomains").then(({ customDomains = [] }) => {
+      sendResponse({ domains: [...AI_DOMAINS, ...customDomains] });
+    });
+    return true;
   }
 });
