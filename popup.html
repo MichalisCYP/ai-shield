@@ -117,6 +117,47 @@
         </button>
       </div>
 
+      <!-- Auth -->
+      <div class="popup-section">
+        <div class="status-card" id="auth-card">
+          <div class="status-text" style="width: 100%">
+            <div class="status-title">Account</div>
+            <div id="auth-status" class="status-detail">Not logged in.</div>
+            <div class="input-group" style="margin-top: 12px">
+              <label for="auth-email">Email</label>
+              <input
+                id="auth-email"
+                type="email"
+                placeholder="you@company.com"
+              />
+            </div>
+            <div class="input-group">
+              <label for="auth-password">Password</label>
+              <input
+                id="auth-password"
+                type="password"
+                placeholder="••••••••"
+              />
+            </div>
+            <div class="popup-actions" style="margin-top: 12px">
+              <button id="signin-btn" class="popup-btn popup-btn-primary">
+                Sign in
+              </button>
+              <button id="signup-btn" class="popup-btn popup-btn-secondary">
+                Sign up
+              </button>
+              <button
+                id="logout-btn"
+                class="popup-btn popup-btn-secondary"
+                style="display: none"
+              >
+                Log out
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Footer -->
       <div class="popup-footer">
         <span>AI Shield v1.0</span>
@@ -125,6 +166,6 @@
       </div>
     </div>
 
-    <script src="popup.js"></script>
+    <script type="module" src="popup.js"></script>
   </body>
 </html>

@@ -3,6 +3,19 @@
 // Controls the popup UI interactions
 // ============================================================
 
+import {
+  clearAuthStorage,
+  ensureValidStoredSession,
+  fetchSupabaseUser,
+  getStoredUser,
+  getStoredSession,
+  signInWithPassword,
+  signOutRemote,
+  signUpWithPassword,
+  storeSession,
+  storeUser,
+} from "./auth.js";
+
 document.addEventListener("DOMContentLoaded", async () => {
   const enabledToggle = document.getElementById("enabled-toggle");
   const userName = document.getElementById("user-name");
@@ -22,6 +35,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     "popup-manager-controls",
   );
   const popupDefaultLevel = document.getElementById("popup-default-level");
+
+  // ---- Auth UI ----
+  const authStatus = document.getElementById("auth-status");
+  const authEmail = document.getElementById("auth-email");
+  const authPassword = document.getElementById("auth-password");
+  const signInBtn = document.getElementById("signin-btn");
+  const signUpBtn = document.getElementById("signup-btn");
+  const logoutBtn = document.getElementById("logout-btn");
 
   // ---- Load settings ----
   const { settings } = await chrome.runtime.sendMessage({
@@ -64,6 +85,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // ---- Load monitoring level ----
   await loadMonitoringInfo();
+
+  // ---- Load auth state ----
+  await loadAuthState();
 
   // ---- Event listeners ----
 
@@ -122,6 +146,58 @@ document.addEventListener("DOMContentLoaded", async () => {
       URL.revokeObjectURL(url);
     });
 
+  signInBtn?.addEventListener("click", async () => {
+    try {
+      authStatus.textContent = "Signing in...";
+      const email = String(authEmail?.value || "").trim();
+      const password = String(authPassword?.value || "");
+      if (!email || !password) {
+        authStatus.textContent = "Enter email + password.";
+        return;
+      }
+
+      const { session, user } = await signInWithPassword({ email, password });
+      await storeSession(session);
+      if (user) await storeUser(user);
+      authPassword.value = "";
+      await loadAuthState();
+    } catch (e) {
+      authStatus.textContent = e?.message || "Sign-in failed.";
+    }
+  });
+
+  signUpBtn?.addEventListener("click", async () => {
+    try {
+      authStatus.textContent = "Signing up...";
+      const email = String(authEmail?.value || "").trim();
+      const password = String(authPassword?.value || "");
+      if (!email || !password) {
+        authStatus.textContent = "Enter email + password.";
+        return;
+      }
+
+      const { session, user } = await signUpWithPassword({ email, password });
+      if (user) await storeUser(user);
+      if (session) {
+        await storeSession(session);
+        authPassword.value = "";
+        await loadAuthState();
+      } else {
+        authStatus.textContent =
+          "Check your email to confirm your account, then sign in.";
+      }
+    } catch (e) {
+      authStatus.textContent = e?.message || "Sign-up failed.";
+    }
+  });
+
+  logoutBtn?.addEventListener("click", async () => {
+    const session = await getStoredSession();
+    await signOutRemote(session?.access_token);
+    await clearAuthStorage();
+    await loadAuthState();
+  });
+
   // ---- Helpers ----
 
   async function loadStats() {
@@ -176,5 +252,61 @@ document.addEventListener("DOMContentLoaded", async () => {
     } else {
       popupManagerControls.style.display = "none";
     }
+  }
+
+  async function loadAuthState() {
+    const { session } = await ensureValidStoredSession();
+    const signupBtn = document.getElementById("signup-btn");
+    const signinBtn = document.getElementById("signin-btn");
+    const authEmail = document.getElementById("auth-email");
+    const authPassword = document.getElementById("auth-password");
+    const authEmailLabel = document.querySelector("label[for='auth-email']");
+    const authPasswordLabel = document.querySelector(
+      "label[for='auth-password'",
+    );
+    const authEmailGroup = document.querySelector(
+      ".input-group:nth-of-type(1)",
+    );
+    const authPasswordGroup = document.querySelector(
+      ".input-group:nth-of-type(2)",
+    );
+
+    if (session) {
+      logoutBtn.style.display = "inline-flex";
+      signupBtn.style.display = "none"; // Hide sign-up button when logged in
+      signinBtn.style.display = "none"; // Hide sign-in button when logged in
+      if (authEmailGroup) authEmailGroup.style.display = "none"; // Hide email input group when logged in
+      if (authPasswordGroup) authPasswordGroup.style.display = "none"; // Hide password input group when logged in
+      if (authEmail) authEmail.style.display = "none"; // Hide email input field when logged in
+      if (authPassword) authPassword.style.display = "none"; // Hide password input field when logged in
+      if (authEmailLabel) authEmailLabel.style.display = "none"; // Hide email label when logged in
+      if (authPasswordLabel) authPasswordLabel.style.display = "none"; // Hide password label when logged in
+    } else {
+      authStatus.textContent = "Not logged in.";
+      logoutBtn.style.display = "none";
+      signupBtn.style.display = "inline-flex"; // Show sign-up button when logged out
+      signinBtn.style.display = "inline-flex"; // Show sign-in button when logged out
+      if (authEmailGroup) authEmailGroup.style.display = "block"; // Show email input group
+      if (authPasswordGroup) authPasswordGroup.style.display = "block"; // Show password input group
+      if (authEmail) authEmail.style.display = "block"; // Show email input field
+      if (authPassword) authPassword.style.display = "block"; // Show password input field
+      if (authEmailLabel) authEmailLabel.style.display = "block"; // Show email label when logged out
+      if (authPasswordLabel) authPasswordLabel.style.display = "block"; // Show password label when logged out
+    }
+
+    // Try cached user first, else fetch
+    let user = await getStoredUser();
+    if (!user) {
+      try {
+        user = await fetchSupabaseUser(session.access_token);
+        await storeUser(user);
+      } catch {
+        // If token is valid enough for refresh, keep session; otherwise user stays unknown
+        user = null;
+      }
+    }
+
+    const email = user?.email || user?.user_metadata?.email;
+    authStatus.textContent = email ? `Logged in as ${email}` : "Logged in.";
   }
 });

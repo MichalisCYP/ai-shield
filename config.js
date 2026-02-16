@@ -144,3 +144,10 @@ export const SENSITIVE_DATA_PATTERNS = [
 
 // Roles that can manage monitoring levels
 export const MANAGER_ROLES = ["Manager"];
+
+// ---- Supabase Auth ----
+// Mirrors dashboard/.env.local values.
+// This is a publishable/anon key (safe to embed client-side).
+export const SUPABASE_URL = "https://nbkyiseujgobcnbzwrid.supabase.co";
+export const SUPABASE_ANON_KEY =
+  "sb_publishable_dIIJIhTiykvGOmFqntFSlg_ee6qo-d7";
