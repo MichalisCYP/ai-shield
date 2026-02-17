@@ -122,6 +122,60 @@ document.addEventListener("DOMContentLoaded", async () => {
       chrome.tabs.create({ url });
     });
 
+  const submitDomainBtn = document.getElementById("submit-domain-btn");
+
+  // Ensure the 'Request Approval' button is visible only when logged in
+  const session = await ensureValidStoredSession();
+  if (session) {
+    submitDomainBtn.style.display = "inline-flex";
+  } else {
+    submitDomainBtn.style.display = "none";
+  }
+
+  submitDomainBtn.addEventListener("click", async () => {
+    try {
+      submitDomainBtn.disabled = true;
+      submitDomainBtn.textContent = "Submitting...";
+
+      const [tab] = await chrome.tabs.query({
+        active: true,
+        currentWindow: true,
+      });
+      const url = new URL(tab.url);
+      const hostname = url.hostname;
+
+      const result = await chrome.runtime.sendMessage({
+        type: "SUBMIT_DOMAIN_FOR_APPROVAL",
+        data: {
+          domain: hostname,
+          name: tab.title || hostname,
+          category: "PENDING",
+        },
+      });
+
+      if (result.success) {
+        submitDomainBtn.textContent = "✓ Submitted for Approval";
+        setTimeout(() => {
+          submitDomainBtn.textContent = "📝 Request Approval for This Domain";
+          submitDomainBtn.disabled = false;
+        }, 2000);
+      } else {
+        submitDomainBtn.textContent =
+          "✗ Failed: " + (result.error || "Unknown error");
+        setTimeout(() => {
+          submitDomainBtn.textContent = "📝 Request Approval for This Domain";
+          submitDomainBtn.disabled = false;
+        }, 3000);
+      }
+    } catch (e) {
+      submitDomainBtn.textContent = "✗ Error: " + e.message;
+      setTimeout(() => {
+        submitDomainBtn.textContent = "📝 Request Approval for This Domain";
+        submitDomainBtn.disabled = false;
+      }, 3000);
+    }
+  });
+
   document
     .getElementById("export-logs-link")
     .addEventListener("click", async (e) => {

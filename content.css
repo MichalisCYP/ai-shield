@@ -244,6 +244,20 @@
   transition: all 0.2s ease !important;
 }
 
+#ai-shield-attach-warning {
+  position: fixed !important;
+  bottom: 20px !important;
+  right: 20px !important;
+  z-index: 2147483646 !important;
+  animation: aiShieldSlideIn 0.2s ease !important;
+}
+
+#ai-shield-attach-warning.ai-shield-fade-out {
+  opacity: 0 !important;
+  transform: translateX(12px) !important;
+  transition: all 0.2s ease !important;
+}
+
 @keyframes aiShieldSlideIn {
   from {
     transform: translateX(24px);
@@ -299,6 +313,21 @@
 }
 
 #ai-shield-paste-dismiss:hover {
+  color: #1d1d1f !important;
+}
+
+#ai-shield-attach-dismiss {
+  background: none !important;
+  border: none !important;
+  font-size: 16px !important;
+  cursor: pointer !important;
+  color: #aeaeb2 !important;
+  padding: 2px !important;
+  flex-shrink: 0 !important;
+  transition: color 0.15s ease !important;
+}
+
+#ai-shield-attach-dismiss:hover {
   color: #1d1d1f !important;
 }
 

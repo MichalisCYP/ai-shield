@@ -75,7 +75,11 @@ async function initializeFromSupabase() {
     });
 
     if (domainsRes.ok) {
-      const domains = await domainsRes.json();
+      let domains = await domainsRes.json();
+
+      // Filter out domains with category 'PENDING'
+      domains = domains.filter((domain) => domain.category !== "PENDING");
+
       await chrome.storage.local.set({ allowedDomains: domains });
     }
 
@@ -215,8 +219,7 @@ function normalizeMonitoringLevel(level) {
   const l = String(level).toLowerCase();
   // Accept both DB-side values (e.g. 'low') and extension keys ('lowest')
   if (l === "low" || l === "lowest") return "lowest";
-  if (l === "high" || l === "highest") return "highest";
-  if (l === "medium") return "medium";
+  else if (l === "high" || l === "highest") return "highest";
   // Fallback to configured default
   return DEFAULT_MONITORING_LEVEL;
 }
@@ -533,6 +536,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message.type === "AI_TEXT_DETECTED") {
+    addLog({
+      type: "ai_text_detected",
+      domain: message.domain,
+      aiToolName: message.aiToolName,
+      interactionType: message.interactionType,
+      tabId: sender.tab?.id,
+    }).then(() => sendResponse({ success: true }));
+    return true;
+  }
+
   // ---- Sensitive data detection (Highest level) ----
   if (message.type === "SENSITIVE_DATA_DETECTED") {
     addLog({
@@ -649,6 +663,56 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
       const approved = match ? await isApprovedDomainAsync(message.url) : false;
       sendResponse({ isAi: !!match, match, approved });
+    })();
+    return true;
+  }
+
+  if (message.type === "SUBMIT_DOMAIN_FOR_APPROVAL") {
+    (async () => {
+      try {
+        const session = await getStoredSession();
+        if (!session?.access_token) {
+          sendResponse({ success: false, error: "Not logged in" });
+          return;
+        }
+
+        const { domain, name, category } = message.data;
+
+        // Submit to Supabase domains table
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/domains`, {
+          method: "POST",
+          headers: {
+            apikey: SUPABASE_ANON_KEY,
+            Authorization: `Bearer ${session.access_token}`,
+            "Content-Type": "application/json",
+            Prefer: "return=minimal",
+          },
+          body: JSON.stringify({
+            domain: domain,
+            name: name,
+            category: category || "PENDING",
+          }),
+        });
+
+        if (res.ok) {
+          // Log the submission
+          await addLog({
+            type: "domain_approval_requested",
+            domain: domain,
+            aiToolName: name,
+            action: "submitted_for_approval",
+          });
+          sendResponse({ success: true });
+        } else {
+          const errorText = await res.text();
+          sendResponse({
+            success: false,
+            error: errorText || "Failed to submit",
+          });
+        }
+      } catch (error) {
+        sendResponse({ success: false, error: error.message });
+      }
     })();
     return true;
   }
