@@ -532,11 +532,182 @@
     }, 10000);
   }
 
+  // ---- Attachment prevention ----
+
+  function attachAttachmentPrevention() {
+    // Prevent file drops
+    document.addEventListener(
+      "dragover",
+      (e) => {
+        try {
+          if (
+            e.dataTransfer &&
+            Array.from(e.dataTransfer.types || []).includes("Files")
+          ) {
+            e.preventDefault();
+          }
+        } catch (err) {}
+      },
+      true,
+    );
+
+    document.addEventListener(
+      "drop",
+      (e) => {
+        try {
+          if (
+            e.dataTransfer &&
+            e.dataTransfer.files &&
+            e.dataTransfer.files.length > 0
+          ) {
+            e.preventDefault();
+            showAttachWarning("drop");
+          }
+        } catch (err) {}
+      },
+      true,
+    );
+
+    // Prevent pasting files from clipboard
+    document.addEventListener(
+      "paste",
+      (e) => {
+        try {
+          const items = e.clipboardData && e.clipboardData.items;
+          if (items) {
+            for (const it of items) {
+              if (it && it.kind === "file") {
+                e.preventDefault();
+                showAttachWarning("paste");
+                return;
+              }
+            }
+          }
+        } catch (err) {}
+      },
+      true,
+    );
+
+    // Disable file inputs and intercept attach/upload buttons
+    function disableFileInputs(root = document) {
+      try {
+        const inputs = root.querySelectorAll('input[type="file"]');
+        inputs.forEach((input) => {
+          if (input.dataset.aiShieldFileBlocked) return;
+          input.dataset.aiShieldFileBlocked = "1";
+          input.addEventListener(
+            "click",
+            (e) => {
+              e.preventDefault();
+              showAttachWarning("click");
+            },
+            true,
+          );
+          input.addEventListener(
+            "change",
+            (e) => {
+              e.preventDefault();
+              try {
+                input.value = "";
+              } catch (err) {}
+              showAttachWarning("change");
+            },
+            true,
+          );
+          try {
+            input.disabled = true;
+            input.style.pointerEvents = "none";
+            input.style.opacity = "0.6";
+          } catch (err) {}
+        });
+
+        const buttons = root.querySelectorAll(
+          "button, a, input[type=button], input[type=submit]",
+        );
+        const re =
+          /\b(attach|attachment|upload|choose file|browse|add file)\b/i;
+        buttons.forEach((btn) => {
+          if (btn.dataset.aiShieldAttachBlocked) return;
+          const text = (
+            btn.innerText ||
+            btn.value ||
+            btn.getAttribute("aria-label") ||
+            ""
+          ).trim();
+          if (re.test(text)) {
+            btn.dataset.aiShieldAttachBlocked = "1";
+            btn.addEventListener(
+              "click",
+              (e) => {
+                e.preventDefault();
+                showAttachWarning("click");
+              },
+              true,
+            );
+          }
+        });
+      } catch (err) {}
+    }
+
+    const observer = new MutationObserver((mutations) => {
+      for (const m of mutations) {
+        if (m.addedNodes && m.addedNodes.length) {
+          m.addedNodes.forEach((node) => {
+            if (node.nodeType === 1) disableFileInputs(node);
+          });
+        }
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    // Initial disable
+    disableFileInputs();
+  }
+
+  function showAttachWarning(reason) {
+    const existing = document.getElementById("ai-shield-attach-warning");
+    if (existing) return;
+    const el = document.createElement("div");
+    el.id = "ai-shield-attach-warning";
+    el.innerHTML = `
+      <div class="ai-shield-paste-content">
+        <span class="ai-shield-paste-icon">📎</span>
+        <div>
+          <strong>File attachment blocked</strong>
+          <br />
+          <small>Uploading files is disabled on unapproved AI tools.</small>
+        </div>
+        <button id="ai-shield-attach-dismiss">✕</button>
+      </div>
+    `;
+    document.documentElement.appendChild(el);
+    try {
+      chrome.runtime.sendMessage({
+        type: "ATTACHMENT_BLOCKED",
+        domain: DOMAIN,
+        interactionType: reason || "unknown",
+      });
+    } catch (err) {}
+    document
+      .getElementById("ai-shield-attach-dismiss")
+      .addEventListener("click", () => {
+        el.classList.add("ai-shield-fade-out");
+        setTimeout(() => el.remove(), 300);
+      });
+    setTimeout(() => {
+      if (el.parentElement) {
+        el.classList.add("ai-shield-fade-out");
+        setTimeout(() => el.remove(), 300);
+      }
+    }, 4000);
+  }
+
   // ---- Initialise ----
 
   setupPasteDetection();
   detectAiInputFields();
   detectEmbeddedAiWidgets();
+  attachAttachmentPrevention();
 
   // Request monitoring level for this domain from the background
   chrome.runtime.sendMessage(

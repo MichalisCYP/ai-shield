@@ -13,7 +13,11 @@ import {
   MONITORING_LEVELS,
   MANAGER_ROLES,
   SENSITIVE_DATA_PATTERNS,
+  SUPABASE_URL,
+  SUPABASE_ANON_KEY,
 } from "./config.js";
+
+import { getStoredSession, getStoredUser } from "./auth.js";
 
 // ---- Initialisation ----
 
@@ -49,7 +53,110 @@ chrome.runtime.onInstalled.addListener(async () => {
   // Set badge
   chrome.action.setBadgeBackgroundColor({ color: "#1a73e8" });
   chrome.action.setBadgeText({ text: "ON" });
+
+  // Fetch data from Supabase
+  await initializeFromSupabase();
 });
+
+// Fetch allowed domains and user monitoring level from Supabase
+async function initializeFromSupabase() {
+  try {
+    const session = await getStoredSession();
+    if (!session?.access_token) return;
+
+    const user = await getStoredUser();
+    if (!user?.id) return;
+
+    // Fetch allowed domains
+    const domainsRes = await fetch(`${SUPABASE_URL}/rest/v1/domains?select=*`, {
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${session.access_token}`,
+      },
+    });
+
+    if (domainsRes.ok) {
+      const domains = await domainsRes.json();
+      await chrome.storage.local.set({ allowedDomains: domains });
+    }
+
+    // Fetch user's monitoring level from profile
+    const profileRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/profiles?id=eq.${user.id}&select=monitoring_level`,
+      {
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      },
+    );
+
+    if (profileRes.ok) {
+      const profiles = await profileRes.json();
+      if (profiles.length > 0) {
+        const rawLevel =
+          profiles[0].monitoring_level || DEFAULT_MONITORING_LEVEL;
+        const monitoringLevel = normalizeMonitoringLevel(rawLevel);
+        await chrome.storage.local.set({
+          monitoringConfig: {
+            defaultLevel: monitoringLevel,
+            siteOverrides: {},
+          },
+        });
+      }
+    }
+  } catch (error) {
+    console.error("AI Shield: Failed to initialize from Supabase", error);
+  }
+}
+
+// Send log to Supabase
+async function sendLogToSupabase(logEntry) {
+  try {
+    const session = await getStoredSession();
+    if (!session?.access_token) return;
+
+    const user = await getStoredUser();
+    const userId = user?.id || null;
+
+    const supabaseLog = {
+      user_id: userId,
+      domain: logEntry.domain || null,
+      ai_tool_name: logEntry.aiToolName || null,
+      ai_category: logEntry.aiCategory || null,
+      url: logEntry.url || null,
+      log_type: logEntry.type || null,
+      action: logEntry.action || null,
+      metadata: {
+        userName: logEntry.userName,
+        userRole: logEntry.userRole,
+        approved: logEntry.approved,
+        tabId: logEntry.tabId,
+        popupTriggered: logEntry.popupTriggered,
+        confirmed: logEntry.confirmed,
+        redirectedTo: logEntry.redirectedTo,
+        fieldType: logEntry.fieldType,
+        contentLength: logEntry.contentLength,
+        interactionType: logEntry.interactionType,
+        detectedTypes: logEntry.detectedTypes,
+        severity: logEntry.severity,
+      },
+    };
+
+    await fetch(`${SUPABASE_URL}/rest/v1/logs`, {
+      method: "POST",
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${session.access_token}`,
+        "Content-Type": "application/json",
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify(supabaseLog),
+    });
+  } catch (error) {
+    console.error("AI Shield: Failed to send log to Supabase", error);
+  }
+}
 
 // ---- Helpers ----
 
@@ -80,6 +187,18 @@ function matchAiDomain(url) {
   }
 }
 
+// Normalize monitoring level values coming from DB or older clients
+function normalizeMonitoringLevel(level) {
+  if (!level) return DEFAULT_MONITORING_LEVEL;
+  const l = String(level).toLowerCase();
+  // Accept both DB-side values (e.g. 'low') and extension keys ('lowest')
+  if (l === "low" || l === "lowest") return "lowest";
+  if (l === "high" || l === "highest") return "highest";
+  if (l === "medium") return "medium";
+  // Fallback to configured default
+  return DEFAULT_MONITORING_LEVEL;
+}
+
 function isApprovedDomain(url) {
   try {
     const hostname = new URL(url).hostname;
@@ -91,16 +210,38 @@ function isApprovedDomain(url) {
   }
 }
 
+// Check if domain is approved (checks both hardcoded and Supabase domains)
+async function isApprovedDomainAsync(url) {
+  try {
+    const hostname = new URL(url).hostname;
+
+    // Check hardcoded approved domains
+    const hardcodedApproved = APPROVED_DOMAINS.some(
+      (d) => hostname === d || hostname.endsWith("." + d),
+    );
+    if (hardcodedApproved) return true;
+
+    // Check Supabase allowed domains
+    const { allowedDomains = [] } =
+      await chrome.storage.local.get("allowedDomains");
+    return allowedDomains.some(
+      (d) => hostname === d.domain || hostname.endsWith("." + d.domain),
+    );
+  } catch {
+    return false;
+  }
+}
+
 // Get effective monitoring level for a domain
 async function getMonitoringLevelForDomain(domain) {
   const { monitoringConfig = {} } =
     await chrome.storage.local.get("monitoringConfig");
   const overrides = monitoringConfig.siteOverrides || {};
-  return (
+  const raw =
     overrides[domain] ||
     monitoringConfig.defaultLevel ||
-    DEFAULT_MONITORING_LEVEL
-  );
+    DEFAULT_MONITORING_LEVEL;
+  return normalizeMonitoringLevel(raw);
 }
 
 // Check whether the current user has manager privileges
@@ -131,6 +272,10 @@ async function addLog(entry) {
   }
 
   await chrome.storage.local.set({ logs });
+
+  // Send to Supabase
+  await sendLogToSupabase(logEntry);
+
   return logEntry;
 }
 
@@ -146,7 +291,7 @@ chrome.webNavigation.onCompleted.addListener(async (details) => {
   const aiMatch = matchAiDomain(details.url);
   if (!aiMatch) return;
 
-  const approved = isApprovedDomain(details.url);
+  const approved = await isApprovedDomainAsync(details.url);
 
   // Log the visit
   await addLog({
@@ -264,7 +409,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.type === "CHECK_AI_DOMAIN") {
-    chrome.storage.local.get("customDomains").then(({ customDomains = [] }) => {
+    (async () => {
+      const { customDomains = [] } =
+        await chrome.storage.local.get("customDomains");
       const allDomains = [...AI_DOMAINS, ...customDomains];
       const hostname = (() => {
         try {
@@ -291,9 +438,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           }
         }
       }
-      const approved = match ? isApprovedDomain(message.url) : false;
+      const approved = match ? await isApprovedDomainAsync(message.url) : false;
       sendResponse({ isAi: !!match, match, approved });
-    });
+    })();
     return true;
   }
 
@@ -327,7 +474,43 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       fieldType: message.fieldType,
       contentLength: message.contentLength, // length only, no content
       tabId: sender.tab?.id,
-    }).then(() => sendResponse({ success: true }));
+    }).then((entry) => {
+      try {
+        if (
+          message.fieldType === "ai_prompt" &&
+          (message.contentLength || 0) > 0
+        ) {
+          chrome.notifications.create({
+            type: "basic",
+            iconUrl: "images/icon-48.png",
+            title: "AI Shield — Paste Detected",
+            message: `Paste detected into AI prompt (${message.contentLength} characters).`,
+          });
+        }
+      } catch (err) {}
+      sendResponse({ success: true, entry });
+    });
+    return true;
+  }
+
+  if (message.type === "ATTACHMENT_BLOCKED") {
+    addLog({
+      type: "attachment_blocked",
+      domain: message.domain,
+      interactionType: message.interactionType,
+      tabId: sender.tab?.id,
+    }).then((entry) => {
+      try {
+        const reason = message.interactionType || "attachment";
+        chrome.notifications.create({
+          type: "basic",
+          iconUrl: "images/icon-48.png",
+          title: "AI Shield — Attachment Blocked",
+          message: `File attachment blocked (${reason}). Uploads disabled on unapproved AI tools.`,
+        });
+      } catch (err) {}
+      sendResponse({ success: true, entry });
+    });
     return true;
   }
 
@@ -434,6 +617,52 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     chrome.storage.local.get("customDomains").then(({ customDomains = [] }) => {
       sendResponse({ domains: [...AI_DOMAINS, ...customDomains] });
     });
+    return true;
+  }
+
+  if (message.type === "REINITIALIZE_FROM_SUPABASE") {
+    initializeFromSupabase().then(() => {
+      sendResponse({ success: true });
+    });
+    return true;
+  }
+
+  if (message.type === "CHECK_AI_DOMAIN_ASYNC") {
+    (async () => {
+      const allDomains = [...AI_DOMAINS];
+      const { customDomains = [] } =
+        await chrome.storage.local.get("customDomains");
+      allDomains.push(...customDomains);
+
+      const hostname = (() => {
+        try {
+          return new URL(message.url).hostname;
+        } catch {
+          return null;
+        }
+      })();
+
+      let match = null;
+      if (hostname) {
+        match = allDomains.find(
+          (d) => hostname === d.domain || hostname.endsWith("." + d.domain),
+        );
+        if (!match) {
+          const tldMatch = AI_TLD_PATTERNS.find((p) =>
+            hostname.endsWith(p.tld),
+          );
+          if (tldMatch) {
+            match = {
+              domain: hostname,
+              name: tldMatch.name,
+              category: tldMatch.category,
+            };
+          }
+        }
+      }
+      const approved = match ? await isApprovedDomainAsync(message.url) : false;
+      sendResponse({ isAi: !!match, match, approved });
+    })();
     return true;
   }
 });

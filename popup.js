@@ -113,12 +113,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   document
-    .getElementById("open-dashboard-btn")
-    .addEventListener("click", () => {
-      chrome.tabs.create({ url: chrome.runtime.getURL("dashboard.html") });
-    });
-
-  document
     .getElementById("redirect-btn")
     .addEventListener("click", async () => {
       const { settings } = await chrome.runtime.sendMessage({
@@ -160,6 +154,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       await storeSession(session);
       if (user) await storeUser(user);
       authPassword.value = "";
+
+      // Reinitialize from Supabase to fetch allowed domains and monitoring level
+      await chrome.runtime.sendMessage({ type: "REINITIALIZE_FROM_SUPABASE" });
+
       await loadAuthState();
     } catch (e) {
       authStatus.textContent = e?.message || "Sign-in failed.";
