@@ -18,8 +18,6 @@ import {
 
 document.addEventListener("DOMContentLoaded", async () => {
   const enabledToggle = document.getElementById("enabled-toggle");
-  const userName = document.getElementById("user-name");
-  const userRole = document.getElementById("user-role");
   const statusIcon = document.getElementById("status-icon");
   const statusTitle = document.getElementById("status-title");
   const statusDetail = document.getElementById("status-detail");
@@ -49,8 +47,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     type: "GET_SETTINGS",
   });
   enabledToggle.checked = settings?.enabled !== false;
-  userName.value = settings?.userName || "";
-  userRole.value = settings?.userRole || "Employee";
 
   // ---- Check current tab ----
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -95,20 +91,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     await chrome.runtime.sendMessage({
       type: "UPDATE_SETTINGS",
       data: { enabled: enabledToggle.checked },
-    });
-  });
-
-  userName.addEventListener("change", async () => {
-    await chrome.runtime.sendMessage({
-      type: "UPDATE_SETTINGS",
-      data: { userName: userName.value },
-    });
-  });
-
-  userRole.addEventListener("change", async () => {
-    await chrome.runtime.sendMessage({
-      type: "UPDATE_SETTINGS",
-      data: { userRole: userRole.value },
     });
   });
 

@@ -23,7 +23,7 @@ AI Shield addresses the challenges of managing AI usage in real-time. By integra
 
 ### Real-Time AI Detection
 
-- Monitors user interactions with popular AI tools like ChatGPT, Claude, Bard, and more.
+- Monitors user interactions with popular AI tools like ChatGPT, Claude, Gemini, and more.
 - Uses domain patterns and input field selectors to identify AI usage.
 
 ### Contextual Warnings
