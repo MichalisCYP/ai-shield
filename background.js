@@ -45,7 +45,6 @@ chrome.runtime.onInstalled.addListener(async () => {
     await chrome.storage.local.set({
       monitoringConfig: {
         defaultLevel: DEFAULT_MONITORING_LEVEL,
-        siteOverrides: {}, // { "domain.com": "highest" }
       },
     });
   }
@@ -80,9 +79,9 @@ async function initializeFromSupabase() {
       await chrome.storage.local.set({ allowedDomains: domains });
     }
 
-    // Fetch user's monitoring level from profile
+    // Fetch user's profile (monitoring level, username, role)
     const profileRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/profiles?id=eq.${user.id}&select=monitoring_level`,
+      `${SUPABASE_URL}/rest/v1/profiles?id=eq.${user.id}&select=monitoring_level,username,role`,
       {
         headers: {
           apikey: SUPABASE_ANON_KEY,
@@ -94,15 +93,38 @@ async function initializeFromSupabase() {
     if (profileRes.ok) {
       const profiles = await profileRes.json();
       if (profiles.length > 0) {
-        const rawLevel =
-          profiles[0].monitoring_level || DEFAULT_MONITORING_LEVEL;
+        const profile = profiles[0] || {};
+
+        // Monitoring level (normalise DB values like 'low' -> 'lowest')
+        const rawLevel = profile.monitoring_level || DEFAULT_MONITORING_LEVEL;
         const monitoringLevel = normalizeMonitoringLevel(rawLevel);
         await chrome.storage.local.set({
           monitoringConfig: {
             defaultLevel: monitoringLevel,
-            siteOverrides: {},
           },
         });
+
+        // Update local settings with username and role from profile so
+        // manager privileges and display name reflect the DB record.
+        try {
+          const { settings = {} } = await chrome.storage.local.get("settings");
+          const rawRole = profile.role || settings.userRole || "Employee";
+          const normalizedRole =
+            String(rawRole).toLowerCase() === "manager"
+              ? "Manager"
+              : String(rawRole).charAt(0).toUpperCase() +
+                String(rawRole).slice(1);
+
+          const updatedSettings = {
+            ...settings,
+            userName: profile.username || settings.userName,
+            userRole: normalizedRole,
+          };
+          await chrome.storage.local.set({ settings: updatedSettings });
+        } catch (e) {
+          // Non-fatal: continue even if settings couldn't be updated
+          console.warn("AI Shield: failed to update settings from profile", e);
+        }
       }
     }
   } catch (error) {
@@ -199,17 +221,6 @@ function normalizeMonitoringLevel(level) {
   return DEFAULT_MONITORING_LEVEL;
 }
 
-function isApprovedDomain(url) {
-  try {
-    const hostname = new URL(url).hostname;
-    return APPROVED_DOMAINS.some(
-      (d) => hostname === d || hostname.endsWith("." + d),
-    );
-  } catch {
-    return false;
-  }
-}
-
 // Check if domain is approved (checks both hardcoded and Supabase domains)
 async function isApprovedDomainAsync(url) {
   try {
@@ -236,11 +247,7 @@ async function isApprovedDomainAsync(url) {
 async function getMonitoringLevelForDomain(domain) {
   const { monitoringConfig = {} } =
     await chrome.storage.local.get("monitoringConfig");
-  const overrides = monitoringConfig.siteOverrides || {};
-  const raw =
-    overrides[domain] ||
-    monitoringConfig.defaultLevel ||
-    DEFAULT_MONITORING_LEVEL;
+  const raw = monitoringConfig.defaultLevel || DEFAULT_MONITORING_LEVEL;
   return normalizeMonitoringLevel(raw);
 }
 
@@ -309,40 +316,41 @@ chrome.webNavigation.onCompleted.addListener(async (details) => {
   // Determine monitoring level for this domain
   const monitoringLevel = await getMonitoringLevelForDomain(aiMatch.domain);
 
-  // If unapproved, inject the warning overlay via content script message
-  if (!approved) {
-    const warningPayload = {
-      type: "SHOW_WARNING",
-      aiToolName: aiMatch.name,
-      aiCategory: aiMatch.category,
-      domain: aiMatch.domain,
-      approvedAiUrl: settings.approvedAiUrl || APPROVED_AI_URL,
-      monitoringLevel,
-    };
+  // Inject the warning overlay via content script message for all AI domains
+  // (approved or not) so users always receive guidance. The payload includes
+  // an `approved` flag so the content script can vary messaging/CTA.
+  const warningPayload = {
+    type: "SHOW_WARNING",
+    aiToolName: aiMatch.name,
+    aiCategory: aiMatch.category,
+    domain: aiMatch.domain,
+    approvedAiUrl: settings.approvedAiUrl || APPROVED_AI_URL,
+    monitoringLevel,
+    approved,
+  };
+  try {
+    await chrome.tabs.sendMessage(details.tabId, warningPayload);
+  } catch {
+    // Content script may not be ready yet; try injecting it
     try {
-      await chrome.tabs.sendMessage(details.tabId, warningPayload);
-    } catch {
-      // Content script may not be ready yet; try injecting it
-      try {
-        await chrome.scripting.executeScript({
-          target: { tabId: details.tabId },
-          files: ["content.js"],
-        });
-        await chrome.scripting.insertCSS({
-          target: { tabId: details.tabId },
-          files: ["content.css"],
-        });
-        // Try again after brief delay
-        setTimeout(async () => {
-          try {
-            await chrome.tabs.sendMessage(details.tabId, warningPayload);
-          } catch (e) {
-            console.warn("AI Shield: Could not show warning", e);
-          }
-        }, 500);
-      } catch (e) {
-        console.warn("AI Shield: Could not inject content script", e);
-      }
+      await chrome.scripting.executeScript({
+        target: { tabId: details.tabId },
+        files: ["content.js"],
+      });
+      await chrome.scripting.insertCSS({
+        target: { tabId: details.tabId },
+        files: ["content.css"],
+      });
+      // Try again after brief delay
+      setTimeout(async () => {
+        try {
+          await chrome.tabs.sendMessage(details.tabId, warningPayload);
+        } catch (e) {
+          console.warn("AI Shield: Could not show warning", e);
+        }
+      }, 500);
+    } catch (e) {
+      console.warn("AI Shield: Could not inject content script", e);
     }
   }
 
@@ -560,34 +568,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
       const { monitoringConfig = {} } =
         await chrome.storage.local.get("monitoringConfig");
-      const updated = { ...monitoringConfig, ...message.data };
-      await chrome.storage.local.set({ monitoringConfig: updated });
-      sendResponse({ success: true, monitoringConfig: updated });
-    });
-    return true;
-  }
-
-  if (message.type === "SET_SITE_MONITORING_LEVEL") {
-    isManager().then(async (allowed) => {
-      if (!allowed) {
-        sendResponse({
-          success: false,
-          error: "Only managers can change monitoring settings.",
-        });
-        return;
-      }
-      const { monitoringConfig = {} } =
-        await chrome.storage.local.get("monitoringConfig");
-      const overrides = { ...(monitoringConfig.siteOverrides || {}) };
-      if (
-        message.level === "default" ||
-        message.level === monitoringConfig.defaultLevel
-      ) {
-        delete overrides[message.domain];
-      } else {
-        overrides[message.domain] = message.level;
-      }
-      const updated = { ...monitoringConfig, siteOverrides: overrides };
+      // Only allow updating the default monitoring level (user-level)
+      const newDefault = normalizeMonitoringLevel(
+        message.data?.defaultLevel ||
+          monitoringConfig.defaultLevel ||
+          DEFAULT_MONITORING_LEVEL,
+      );
+      const updated = { defaultLevel: newDefault };
       await chrome.storage.local.set({ monitoringConfig: updated });
       sendResponse({ success: true, monitoringConfig: updated });
     });

@@ -62,21 +62,22 @@
 
     aiToolName = data.aiToolName || aiToolName;
     const approvedUrl = data.approvedAiUrl || "https://openrouter.ai/";
+    const isApproved = !!data.approved;
 
     // Create fullscreen overlay
     const overlay = document.createElement("div");
     overlay.id = "ai-shield-overlay";
     overlay.innerHTML = `
       <div id="ai-shield-warning-card">
-        <div class="ai-shield-header">
+          <div class="ai-shield-header">
           <div class="ai-shield-icon">
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#e74c3c" stroke-width="2">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="${isApproved ? "#2e7d32" : "#e74c3c"}" stroke-width="2">
               <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
               <line x1="12" y1="9" x2="12" y2="13"/>
               <line x1="12" y1="17" x2="12.01" y2="17"/>
             </svg>
           </div>
-          <h1>⚠️ Unapproved AI Tool Detected</h1>
+          <h1>${isApproved ? "ℹ️ Approved AI Tool — Reminder" : "⚠️ Unapproved AI Tool Detected"}</h1>
         </div>
 
         <div class="ai-shield-body">
@@ -89,9 +90,15 @@
           </div>
 
           <div class="ai-shield-actions">
+            ${
+              isApproved
+                ? ""
+                : `
             <button id="ai-shield-redirect-btn" class="ai-shield-btn ai-shield-btn-primary">
               🔒 Use Approved AI Instead
             </button>
+            `
+            }
 
             <div class="ai-shield-continue-section">
               <div class="ai-shield-checkbox-row">
@@ -101,7 +108,7 @@
                 </label>
               </div>
               <button id="ai-shield-continue-btn" class="ai-shield-btn ai-shield-btn-secondary" disabled>
-                Continue Anyway (<span id="ai-shield-countdown">${WARNING_DELAY_MS / 1000}</span>s)
+                ${isApproved ? "Acknowledge" : `Continue Anyway (<span id="ai-shield-countdown">${WARNING_DELAY_MS / 1000}</span>s)`}
               </button>
             </div>
           </div>
@@ -115,13 +122,16 @@
 
     document.documentElement.appendChild(overlay);
 
-    // ---- Countdown timer ----
+    // ---- Countdown / acknowledge handling ----
     let countdown = WARNING_DELAY_MS / 1000;
     const countdownEl = document.getElementById("ai-shield-countdown");
     const continueBtn = document.getElementById("ai-shield-continue-btn");
     const confirmCheckbox = document.getElementById(
       "ai-shield-confirm-checkbox",
     );
+
+    // If there's no countdown element (approved flow), behave as immediate acknowledge
+    if (!countdownEl) countdown = 0;
 
     const timer = setInterval(() => {
       countdown--;
@@ -133,7 +143,20 @@
     }, 1000);
 
     function updateContinueButton() {
-      if (countdown <= 0 && confirmCheckbox.checked) {
+      // For approved flows, enable once checkbox is checked
+      if (!countdownEl) {
+        if (confirmCheckbox && confirmCheckbox.checked) {
+          continueBtn.disabled = false;
+          continueBtn.textContent = isApproved ? "Acknowledge" : "Continue";
+          continueBtn.classList.add("ai-shield-btn-enabled");
+        } else {
+          continueBtn.disabled = true;
+          continueBtn.classList.remove("ai-shield-btn-enabled");
+        }
+        return;
+      }
+
+      if (countdown <= 0 && confirmCheckbox && confirmCheckbox.checked) {
         continueBtn.disabled = false;
         continueBtn.textContent = "Continue Anyway";
         continueBtn.classList.add("ai-shield-btn-enabled");
@@ -144,12 +167,13 @@
       }
     }
 
-    confirmCheckbox.addEventListener("change", updateContinueButton);
+    if (confirmCheckbox)
+      confirmCheckbox.addEventListener("change", updateContinueButton);
 
-    // ---- Redirect button ----
-    document
-      .getElementById("ai-shield-redirect-btn")
-      .addEventListener("click", () => {
+    // ---- Redirect button (only for unapproved) ----
+    const redirectBtn = document.getElementById("ai-shield-redirect-btn");
+    if (redirectBtn) {
+      redirectBtn.addEventListener("click", () => {
         chrome.runtime.sendMessage({
           type: "USER_REDIRECTED",
           domain: DOMAIN,
@@ -158,20 +182,23 @@
         });
         window.location.href = approvedUrl;
       });
+    }
 
-    // ---- Continue button ----
-    continueBtn.addEventListener("click", () => {
-      if (continueBtn.disabled) return;
-      warningDismissed = true;
-      chrome.runtime.sendMessage({
-        type: "USER_CONTINUED",
-        domain: DOMAIN,
-        aiToolName: aiToolName,
-        confirmed: true,
+    // ---- Continue / Acknowledge button ----
+    if (continueBtn) {
+      continueBtn.addEventListener("click", () => {
+        if (continueBtn.disabled) return;
+        warningDismissed = true;
+        chrome.runtime.sendMessage({
+          type: "USER_CONTINUED",
+          domain: DOMAIN,
+          aiToolName: aiToolName,
+          confirmed: true,
+        });
+        overlay.classList.add("ai-shield-fade-out");
+        setTimeout(() => overlay.remove(), 300);
       });
-      overlay.classList.add("ai-shield-fade-out");
-      setTimeout(() => overlay.remove(), 300);
-    });
+    }
 
     // Block scrolling while overlay is visible
     document.body.style.overflow = "hidden";
@@ -193,11 +220,23 @@
     document.addEventListener(
       "paste",
       (e) => {
-        const target = e.target;
-        const isInput = target.matches(
-          'textarea, input, [contenteditable="true"]',
-        );
-        const isAiInput = isInput && isLikelyAiInput(target);
+        // Ensure we have an Element to inspect (could be a text node)
+        let targetEl = e.target;
+        if (!(targetEl instanceof Element)) {
+          targetEl =
+            targetEl && targetEl.parentElement
+              ? targetEl.parentElement
+              : document.activeElement;
+        }
+
+        // Find the nearest input-like ancestor (or self)
+        const inputAncestor =
+          targetEl &&
+          (targetEl.closest('textarea, input, [contenteditable="true"]') ||
+            null);
+
+        const isInput = !!inputAncestor;
+        const isAiInput = isInput && isLikelyAiInput(inputAncestor);
 
         // We only measure length — never capture content
         const clipboardData = e.clipboardData;
@@ -225,13 +264,16 @@
   }
 
   function isLikelyAiInput(element) {
-    for (const selector of AI_INPUT_SELECTORS) {
-      try {
-        if (element.matches(selector)) return true;
-      } catch {
-        /* invalid selector */
+    if (!element) return false;
+    try {
+      for (const selector of AI_INPUT_SELECTORS) {
+        try {
+          if (element.closest && element.closest(selector)) return true;
+        } catch (err) {
+          // ignore invalid selector
+        }
       }
-    }
+    } catch (err) {}
     return false;
   }
 
@@ -277,7 +319,13 @@
     const observer = new MutationObserver(() => {
       for (const selector of AI_INPUT_SELECTORS.slice(0, 10)) {
         // only specific selectors
-        const elements = document.querySelectorAll(selector);
+        let elements = [];
+        try {
+          elements = document.querySelectorAll(selector);
+        } catch (err) {
+          // invalid selector — skip
+          continue;
+        }
         elements.forEach((el) => {
           if (el.dataset.aiShieldTracked) return;
           el.dataset.aiShieldTracked = "true";
@@ -302,7 +350,12 @@
 
     // Initial scan
     for (const selector of AI_INPUT_SELECTORS.slice(0, 10)) {
-      const elements = document.querySelectorAll(selector);
+      let elements = [];
+      try {
+        elements = document.querySelectorAll(selector);
+      } catch (err) {
+        continue;
+      }
       elements.forEach((el) => {
         if (el.dataset.aiShieldTracked) return;
         el.dataset.aiShieldTracked = "true";
@@ -430,8 +483,18 @@
 
   function onPasteHighest(e) {
     if (currentMonitoringLevel !== "highest") return;
-    const target = e.target;
-    if (!target.matches('textarea, input, [contenteditable="true"]')) return;
+    // Ensure we inspect a nearest input element (handle text nodes and shadow cases)
+    let targetEl = e.target;
+    if (!(targetEl instanceof Element)) {
+      targetEl =
+        targetEl && targetEl.parentElement
+          ? targetEl.parentElement
+          : document.activeElement;
+    }
+    const inputAncestor =
+      targetEl &&
+      (targetEl.closest('textarea, input, [contenteditable="true"]') || null);
+    if (!inputAncestor) return;
 
     const clipboardData = e.clipboardData;
     if (!clipboardData) return;
