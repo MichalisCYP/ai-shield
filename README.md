@@ -1,102 +1,93 @@
-# AI Shield — Chrome Extension
+# AI Shield Chrome Extension
 
-A Chrome browser extension that guides employees toward safer AI usage by detecting unapproved AI tools, prompting confirmation, and logging metadata for security teams.
+<p align="center">
+  <strong>Empowering Organizations to Securely Navigate AI Usage</strong>
+</p>
 
-## Features
+<p align="center">
+  AI Shield is a Chrome extension that detects, monitors, and guides AI tool usage, ensuring compliance with organizational policies while preventing sensitive data exposure.
+</p>
 
-### 1. AI Domain Detection
+<br/>
 
-Monitors 30+ AI-related domains including ChatGPT, Claude, Gemini, Copilot, DeepSeek, Perplexity, and more. Automatically detects when a user navigates to an unapproved AI tool.
+## Overview
 
-### 2. AI Usage Detection
+AI Shield addresses the challenges of managing AI usage in real-time. By integrating seamlessly into the browser, it provides:
 
-- **Paste detection** — identifies when users paste content into AI prompt fields (logs length only, never content)
-- **Prompt field detection** — tracks focus events on AI input areas
-- **Embedded AI widget detection** — identifies AI iframes embedded in other applications
+- **Detection**: Identifies AI tools and domains accessed by users.
+- **Guidance**: Displays contextual warnings and redirects users to approved AI environments.
+- **Logging**: Captures metadata (never content) for security visibility.
+- **Prevention**: Blocks sensitive data from being entered into unapproved AI tools.
 
-### 3. User Intervention (Warning Overlay)
+## Key Features
 
-When an unapproved AI tool is detected, a full-screen warning overlay appears:
+### Real-Time AI Detection
 
-- **5-second delay** before the user can proceed (prevents quick dismissal)
-- **Mandatory checkbox** — user must confirm they won't paste sensitive data
-- **Redirect button** — prominent button to redirect to the approved AI tool (OpenRouter)
-- **Continue button** — only enabled after delay + checkbox confirmation
-- The overlay is designed to nudge users toward the approved tool
+- Monitors user interactions with popular AI tools like ChatGPT, Claude, Bard, and more.
+- Uses domain patterns and input field selectors to identify AI usage.
 
-### 4. Metadata Logging (Privacy-First)
+### Contextual Warnings
 
-Captures signal-level logs only:
+- Alerts users when accessing unapproved AI tools.
+- Implements a delay before users can proceed, encouraging safer practices.
 
-- Domain accessed & AI tool name
-- Timestamp
-- Type of interaction (visit, paste, input focus, redirect)
-- Whether a warning was triggered
-- Whether the user continued or was redirected
-- User name and role
+### Monitoring Levels
 
-**Never captures:** prompt text, pasted content, keystrokes, or sensitive data.
+- **Low**: Tracks basic domain and interaction metadata.
+- **High/Strict**: Monitors sensitive data patterns to prevent accidental exposure.
 
-## Architecture
+### Seamless Integration
 
-```
-ai-shield/
-├── manifest.json        # MV3 manifest with permissions
-├── config.js            # AI domain list, approved URL, settings
-├── background.js        # Service worker: navigation monitoring, logging
-├── content.js           # Content script: paste/input detection, warning overlay
-├── content.css          # Warning overlay and paste toast styles
-├── popup.html/js/css    # Extension popup: status, stats, quick actions
-├── dashboard.html/js/css # Full analytics dashboard for security teams
-└── images/              # Extension icons (16, 32, 48, 128px)
-```
+- Works as a background service worker to manage state, handle logging, and enforce policies.
+- Injects content scripts into AI domains to detect interactions and enforce monitoring.
+
+### Role-Based Access
+
+- Employees: View their own activity logs.
+- Managers: Configure monitoring levels, approve domains, and access analytics.
+
+### Domain Management
+
+- Pre-configured with a list of approved and monitored AI domains.
+- Allows organizations to customize domain approvals and monitoring levels.
+
+## How It Works
+
+1. **Background Service Worker**:
+   - Initializes storage for logs, settings, and monitoring configurations.
+   - Detects navigation events and applies monitoring policies.
+
+2. **Content Script**:
+   - Injected into AI domains to detect user interactions.
+   - Monitors input fields for sensitive data patterns.
+
+3. **Manifest Configuration**:
+   - Defines permissions for active tabs, storage, and web navigation.
+   - Specifies host permissions for popular AI tools.
+
+## Tech Stack
+
+- **Frontend**: Chrome Extension APIs, JavaScript
+- **Backend**: Supabase (for logging and analytics)
+- **Deployment**: Chrome Web Store
 
 ## Installation
 
-1. Open Chrome and navigate to `chrome://extensions/`
-2. Enable **Developer mode** (toggle in top-right)
-3. Click **Load unpacked**
-4. Select the `ai-shield` folder
-5. The extension icon (shield) will appear in your toolbar
+1. Clone the repository:
 
-## Usage
+   ```bash
+   git clone https://github.com/your-org/ai-shield.git
+   cd ai-shield
+   ```
 
-### For Employees
+2. Load the extension:
+   - Open Chrome and navigate to `chrome://extensions`.
+   - Enable "Developer mode" and click "Load unpacked."
+   - Select the `ai-shield` directory.
 
-- The extension runs automatically in the background
-- When visiting an unapproved AI tool, a warning overlay appears
-- Click **"Use Approved AI Instead"** to be redirected to the approved tool
-- Or confirm you won't share sensitive data and continue
-- Set your name and role in the popup for identification
+3. Configure settings:
+   - Update `config.js` with your organization's Supabase URL and API keys.
 
-### For Security Teams
+## Feedback and Issues
 
-- Click the extension icon → **"View Dashboard"** to open the analytics page
-- **Overview tab** — summary cards, top AI tools accessed, compliance rate
-- **Logs tab** — detailed event log with filters, JSON/CSV export
-- **Settings tab** — configure user identity, approved AI URL, enable/disable
-
-### Exporting Logs
-
-- Dashboard → Logs tab → **Export JSON** or **Export CSV**
-- Or from the popup → **Export Logs** link
-
-## Configuration
-
-Edit `config.js` to customise:
-
-- `AI_DOMAINS` — add or remove monitored AI domains
-- `APPROVED_AI_URL` — change the approved AI redirect URL (default: openrouter.ai)
-- `APPROVED_DOMAINS` — domains that won't trigger the blocking overlay
-- `WARNING_DELAY_MS` — how long users must wait before dismissing (default: 5000ms)
-- `MAX_LOG_ENTRIES` — maximum stored log entries (default: 10,000)
-
-## Privacy
-
-This extension is designed with privacy as a core principle:
-
-- **No content capture** — never reads prompt text, pasted content, or keystrokes
-- **Metadata only** — logs domain, timestamp, interaction type, and user action
-- **Local storage** — all data stays in the browser's local storage
-- **No external transmission** — logs are not sent to any server
-- **User-controlled** — can be disabled at any time via the popup toggle
+Please file feedback and issues on the [GitHub repository](https://github.com/your-org/ai-shield/issues).
