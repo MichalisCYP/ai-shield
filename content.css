@@ -331,9 +331,95 @@
   color: #1d1d1f !important;
 }
 
-/* ---- Sensitive Data Warning ---- */
+/* ---- Sensitive Data Warning — Toast (medium / high) ---- */
 
-#ai-shield-sensitive-warning {
+#ai-shield-sensitive-warning.ai-shield-sensitive-toast {
+  position: fixed !important;
+  top: 16px !important;
+  right: 20px !important;
+  z-index: 2147483646 !important;
+  animation: aiShieldSlideIn 0.2s ease !important;
+  max-width: 420px !important;
+}
+
+#ai-shield-sensitive-warning.ai-shield-sensitive-toast.ai-shield-fade-out {
+  opacity: 0 !important;
+  transform: translateX(12px) !important;
+  transition: all 0.2s ease !important;
+}
+
+/* ---- Sensitive Data Warning — Modal (critical) ---- */
+
+#ai-shield-sensitive-warning.ai-shield-sensitive-modal {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: 2147483646 !important;
+  display: flex !important;
+  align-items: flex-start !important;
+  justify-content: center !important;
+  padding-top: 60px !important;
+  background: rgba(0, 0, 0, 0.45) !important;
+  animation: aiShieldFadeIn 0.2s ease !important;
+  backdrop-filter: blur(3px) !important;
+}
+
+#ai-shield-sensitive-warning.ai-shield-sensitive-modal.ai-shield-fade-out {
+  opacity: 0 !important;
+  transition: opacity 0.2s ease !important;
+}
+
+.ai-shield-sensitive-modal-card {
+  background: #fff !important;
+  border-radius: 10px !important;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.22) !important;
+  padding: 20px 24px !important;
+  max-width: 480px !important;
+  width: 90vw !important;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif !important;
+  animation: aiShieldSlideUp 0.25s ease !important;
+}
+
+.ai-shield-sensitive-modal-header {
+  display: flex !important;
+  align-items: flex-start !important;
+  gap: 14px !important;
+}
+
+.ai-shield-sensitive-modal-advice {
+  margin: 14px 0 0 0 !important;
+  font-size: 13px !important;
+  color: #555 !important;
+  line-height: 1.5 !important;
+  background: #ffebee !important;
+  border-left: 3px solid #f44336 !important;
+  padding: 8px 12px !important;
+  border-radius: 4px !important;
+}
+
+.ai-shield-sensitive-btn-dismiss {
+  background: #f44336 !important;
+  color: #fff !important;
+  border: none !important;
+  border-radius: 6px !important;
+  padding: 8px 18px !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  font-family: inherit !important;
+}
+
+.ai-shield-sensitive-btn-dismiss:hover {
+  background: #d32f2f !important;
+}
+
+/* ---- Legacy fallback for toast wrapper ---- */
+#ai-shield-sensitive-warning:not(.ai-shield-sensitive-modal):not(
+    .ai-shield-sensitive-toast
+  ) {
   position: fixed !important;
   top: 16px !important;
   right: 20px !important;
@@ -341,7 +427,9 @@
   animation: aiShieldSlideIn 0.2s ease !important;
 }
 
-#ai-shield-sensitive-warning.ai-shield-fade-out {
+#ai-shield-sensitive-warning:not(.ai-shield-sensitive-modal):not(
+    .ai-shield-sensitive-toast
+  ).ai-shield-fade-out {
   opacity: 0 !important;
   transform: translateX(12px) !important;
   transition: all 0.2s ease !important;

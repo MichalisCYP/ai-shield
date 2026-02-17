@@ -99,7 +99,7 @@ async function initializeFromSupabase() {
       if (profiles.length > 0) {
         const profile = profiles[0] || {};
 
-        // Monitoring level (normalise DB values like 'low' -> 'lowest')
+        // Monitoring level (normalise DB values)
         const rawLevel = profile.monitoring_level || DEFAULT_MONITORING_LEVEL;
         const monitoringLevel = normalizeMonitoringLevel(rawLevel);
         await chrome.storage.local.set({
@@ -213,13 +213,13 @@ function matchAiDomain(url) {
   }
 }
 
-// Normalize monitoring level values coming from DB or older clients
+// Normalize monitoring level values (canonical: 'low' | 'high')
 function normalizeMonitoringLevel(level) {
   if (!level) return DEFAULT_MONITORING_LEVEL;
   const l = String(level).toLowerCase();
-  // Accept both DB-side values (e.g. 'low') and extension keys ('lowest')
-  if (l === "low" || l === "lowest") return "lowest";
-  else if (l === "high" || l === "highest") return "highest";
+  // Canonical values are 'low' and 'high' (matching DB)
+  if (l === "low") return "low";
+  else if (l === "high") return "high";
   // Fallback to configured default
   return DEFAULT_MONITORING_LEVEL;
 }
@@ -547,7 +547,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  // ---- Sensitive data detection (Highest level) ----
+  // ---- Sensitive data detection (High level) ----
   if (message.type === "SENSITIVE_DATA_DETECTED") {
     addLog({
       type: "sensitive_data_detected",

@@ -17,7 +17,7 @@
   const WARNING_DELAY_MS = 5000; // 5 seconds before user can proceed
 
   // ---- Monitoring Level State ----
-  let currentMonitoringLevel = "lowest";
+  let currentMonitoringLevel = "low";
   let sensitivePatterns = []; // [{name, regex: RegExp, severity}]
   let sensitiveCheckTimer = null;
   let lastSensitiveAlert = 0; // throttle alerts
@@ -238,17 +238,34 @@
         const isInput = !!inputAncestor;
         const isAiInput = isInput && isLikelyAiInput(inputAncestor);
 
-        // We only measure length — never capture content
+        // Extract clipboard text — we only measure length and scan for patterns,
+        // the raw content is never logged or sent anywhere.
         const clipboardData = e.clipboardData;
+        let pasteText = "";
         let contentLength = 0;
         if (clipboardData) {
-          const text = clipboardData.getData("text/plain");
-          contentLength = text ? text.length : 0;
+          pasteText = clipboardData.getData("text/plain") || "";
+          contentLength = pasteText.length;
         }
 
-        if (isAiInput && contentLength > 50) {
-          // Large paste into AI input — show a mini-reminder
-          showPasteWarning(contentLength);
+        if (isAiInput) {
+          // Always scan paste content for sensitive data patterns, regardless
+          // of the current monitoring level.
+          if (pasteText.length > 0) {
+            scanPasteContent(pasteText);
+          }
+
+          // Show a generic paste reminder for any paste into an AI input.
+          // Delay slightly so the sensitive warning (if any) gets priority and
+          // suppresses this generic one.
+          setTimeout(() => {
+            const sensitiveWarning = document.getElementById(
+              "ai-shield-sensitive-warning",
+            );
+            if (!sensitiveWarning) {
+              showPasteWarning(contentLength);
+            }
+          }, 50);
         }
 
         chrome.runtime.sendMessage({
@@ -277,38 +294,40 @@
     return false;
   }
 
+  // ---- Paste Warning Overlay ----
+
   function showPasteWarning(contentLength) {
     // Remove existing paste warning if any
     const existing = document.getElementById("ai-shield-paste-warning");
     if (existing) existing.remove();
 
-    const warning = document.createElement("div");
-    warning.id = "ai-shield-paste-warning";
-    warning.innerHTML = `
+    const overlay = document.createElement("div");
+    overlay.id = "ai-shield-paste-warning";
+    overlay.innerHTML = `
       <div class="ai-shield-paste-content">
         <span class="ai-shield-paste-icon">📋</span>
         <div>
-          <strong>Large paste detected</strong> (${contentLength.toLocaleString()} characters)
+          <strong>Paste detected</strong> (${contentLength.toLocaleString()} characters)
           <br />
           <small>Please ensure you are not pasting sensitive or confidential data.</small>
         </div>
         <button id="ai-shield-paste-dismiss">✕</button>
       </div>
     `;
-    document.documentElement.appendChild(warning);
 
-    document
-      .getElementById("ai-shield-paste-dismiss")
-      .addEventListener("click", () => {
-        warning.classList.add("ai-shield-fade-out");
-        setTimeout(() => warning.remove(), 300);
-      });
+    document.body.appendChild(overlay);
+
+    const dismissButton = document.getElementById("ai-shield-paste-dismiss");
+    dismissButton.addEventListener("click", () => {
+      overlay.classList.add("ai-shield-fade-out");
+      setTimeout(() => overlay.remove(), 300);
+    });
 
     // Auto-dismiss after 8 seconds
     setTimeout(() => {
-      if (warning.parentElement) {
-        warning.classList.add("ai-shield-fade-out");
-        setTimeout(() => warning.remove(), 300);
+      if (overlay.parentElement) {
+        overlay.classList.add("ai-shield-fade-out");
+        setTimeout(() => overlay.remove(), 300);
       }
     }, 8000);
   }
@@ -434,8 +453,8 @@
   // ---- Monitoring Level Handling ----
 
   function setMonitoringLevel(level) {
-    currentMonitoringLevel = level || "lowest";
-    if (currentMonitoringLevel === "highest") {
+    currentMonitoringLevel = level || "low";
+    if (currentMonitoringLevel === "high") {
       loadSensitivePatterns();
       attachInputScanners();
     }
@@ -449,7 +468,11 @@
         if (response && response.patterns) {
           sensitivePatterns = response.patterns.map((p) => ({
             name: p.name,
-            regex: new RegExp(p.regex, p.flags || ""),
+            // Patterns are sent as serialised strings from the background
+            regex:
+              p.regex instanceof RegExp
+                ? p.regex
+                : new RegExp(p.regex, p.flags || ""),
             severity: p.severity,
           }));
         }
@@ -457,17 +480,60 @@
     );
   }
 
-  // ---- Real-time Input Scanning (Highest level) ----
+  // ---- Paste-specific sensitive data scan (works at any monitoring level) ----
+
+  function scanPasteContent(text) {
+    if (!text || text.length === 0) return;
+    if (sensitivePatterns.length === 0) return;
+
+    const matches = [];
+    let highestSeverity = "medium";
+    const severityRank = { medium: 0, high: 1, critical: 2 };
+
+    for (const pattern of sensitivePatterns) {
+      try {
+        // Use a fresh regex each call to avoid lastIndex issues with global flags
+        const re = new RegExp(
+          pattern.regex.source,
+          pattern.regex.flags.replace("g", ""),
+        );
+        if (re.test(text)) {
+          matches.push(pattern.name);
+          if (severityRank[pattern.severity] > severityRank[highestSeverity]) {
+            highestSeverity = pattern.severity;
+          }
+        }
+      } catch (err) {
+        /* ignore bad regex */
+      }
+    }
+
+    if (matches.length === 0) return;
+
+    // Show the warning overlay immediately (not throttled for paste events)
+    showSensitiveDataWarning(matches, highestSeverity);
+
+    chrome.runtime.sendMessage({
+      type: "SENSITIVE_DATA_DETECTED",
+      domain: DOMAIN,
+      aiToolName: aiToolName,
+      detectedTypes: matches,
+      severity: highestSeverity,
+      source: "paste",
+    });
+  }
+
+  // ---- Real-time Input Scanning (High level) ----
 
   function attachInputScanners() {
     // Watch for input events on AI prompt fields
     document.addEventListener("input", onInputChange, true);
-    // Also intercept paste at highest level with content scanning
-    document.addEventListener("paste", onPasteHighest, true);
+    // Also intercept paste at high level with content scanning
+    document.addEventListener("paste", onPasteHigh, true);
   }
 
   function onInputChange(e) {
-    if (currentMonitoringLevel !== "highest") return;
+    if (currentMonitoringLevel !== "high") return;
     const target = e.target;
     if (!isLikelyAiInput(target)) return;
 
@@ -481,8 +547,8 @@
     }, 400);
   }
 
-  function onPasteHighest(e) {
-    if (currentMonitoringLevel !== "highest") return;
+  function onPasteHigh(e) {
+    if (currentMonitoringLevel !== "high") return;
     // Ensure we inspect a nearest input element (handle text nodes and shadow cases)
     let targetEl = e.target;
     if (!(targetEl instanceof Element)) {
@@ -552,31 +618,76 @@
     if (existing) existing.remove();
 
     const severityColors = {
-      medium: { bg: "#fff3cd", border: "#ffc107", icon: "⚠️" },
-      high: { bg: "#ffe0b2", border: "#ff9800", icon: "🔶" },
-      critical: { bg: "#ffebee", border: "#f44336", icon: "🚨" },
+      medium: {
+        bg: "#fff3cd",
+        border: "#ffc107",
+        icon: "⚠️",
+        label: "Warning",
+      },
+      high: {
+        bg: "#ffe0b2",
+        border: "#ff9800",
+        icon: "🔶",
+        label: "High Risk",
+      },
+      critical: {
+        bg: "#ffebee",
+        border: "#f44336",
+        icon: "🚨",
+        label: "CRITICAL",
+      },
     };
     const style = severityColors[severity] || severityColors.medium;
+    const isCritical = severity === "critical";
 
     const warning = document.createElement("div");
     warning.id = "ai-shield-sensitive-warning";
-    warning.innerHTML = `
-      <div class="ai-shield-sensitive-content" style="
-        background: ${style.bg} !important;
-        border: 1px solid ${style.border} !important;
-        border-left: 4px solid ${style.border} !important;
-      ">
-        <span class="ai-shield-sensitive-icon">${style.icon}</span>
-        <div>
-          <strong>Sensitive data detected!</strong>
-          <br />
-          <small>Detected: ${matchedTypes.join(", ")}</small>
-          <br />
-          <small style="color:#c62828 !important;">Please remove sensitive information before submitting.</small>
+    // For critical findings use a centred modal-style banner; otherwise use the toast
+    warning.className = isCritical
+      ? "ai-shield-sensitive-modal"
+      : "ai-shield-sensitive-toast";
+
+    warning.innerHTML = isCritical
+      ? `
+        <div class="ai-shield-sensitive-modal-card" style="border-top: 4px solid ${style.border} !important;">
+          <div class="ai-shield-sensitive-modal-header">
+            <span style="font-size:28px;">${style.icon}</span>
+            <div>
+              <strong style="color:${style.border} !important; font-size:15px;">${style.label}: Sensitive Data Detected</strong>
+              <p style="margin:4px 0 0 0; font-size:13px; color:#555;">
+                The text you are about to paste appears to contain:
+              </p>
+              <ul style="margin:6px 0 0 16px; padding:0; font-size:13px; color:#333;">
+                ${matchedTypes.map((t) => `<li>${escapeHtml(t)}</li>`).join("")}
+              </ul>
+            </div>
+          </div>
+          <p class="ai-shield-sensitive-modal-advice">
+            Please remove or anonymise sensitive information before submitting to an AI tool.
+          </p>
+          <div style="display:flex; gap:10px; margin-top:12px;">
+            <button id="ai-shield-sensitive-dismiss" class="ai-shield-sensitive-btn-dismiss">Dismiss</button>
+          </div>
         </div>
-        <button id="ai-shield-sensitive-dismiss">✕</button>
-      </div>
-    `;
+      `
+      : `
+        <div class="ai-shield-sensitive-content" style="
+          background: ${style.bg} !important;
+          border: 1px solid ${style.border} !important;
+          border-left: 4px solid ${style.border} !important;
+        ">
+          <span class="ai-shield-sensitive-icon">${style.icon}</span>
+          <div>
+            <strong>Sensitive data detected</strong>
+            <br />
+            <small>Detected: ${matchedTypes.map(escapeHtml).join(", ")}</small>
+            <br />
+            <small style="color:#c62828 !important;">Please remove sensitive information before submitting.</small>
+          </div>
+          <button id="ai-shield-sensitive-dismiss">✕</button>
+        </div>
+      `;
+
     document.documentElement.appendChild(warning);
 
     document
@@ -586,13 +697,14 @@
         setTimeout(() => warning.remove(), 300);
       });
 
-    // Auto-dismiss after 10 seconds
+    // Auto-dismiss: longer timeout for critical so user has time to read it
+    const dismissMs = isCritical ? 15000 : 10000;
     setTimeout(() => {
       if (warning.parentElement) {
         warning.classList.add("ai-shield-fade-out");
         setTimeout(() => warning.remove(), 300);
       }
-    }, 10000);
+    }, dismissMs);
   }
 
   // ---- Attachment prevention ----
@@ -771,6 +883,9 @@
   detectAiInputFields();
   detectEmbeddedAiWidgets();
   attachAttachmentPrevention();
+
+  // Always pre-load sensitive patterns so paste scanning works at any level
+  loadSensitivePatterns();
 
   // Request monitoring level for this domain from the background
   chrome.runtime.sendMessage(

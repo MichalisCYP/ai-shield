@@ -260,15 +260,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     const { monitoringConfig = {} } = await chrome.runtime.sendMessage({
       type: "GET_MONITORING_CONFIG",
     });
-    const level = monitoringConfig.defaultLevel || "lowest";
+    const level = monitoringConfig.defaultLevel || "low";
 
     // Update badge
-    if (level === "highest") {
-      popupMonitoringBadge.textContent = "🔴 Highest";
-      popupMonitoringBadge.className = "monitoring-badge monitoring-highest";
+    if (level === "high") {
+      popupMonitoringBadge.textContent = "🔴 High";
+      popupMonitoringBadge.className = "monitoring-badge monitoring-high";
     } else {
-      popupMonitoringBadge.textContent = "🟢 Lowest";
-      popupMonitoringBadge.className = "monitoring-badge monitoring-lowest";
+      popupMonitoringBadge.textContent = "🟢 Low";
+      popupMonitoringBadge.className = "monitoring-badge monitoring-low";
     }
 
     // If manager, show quick-change control

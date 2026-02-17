@@ -284,12 +284,12 @@ input:checked + .slider::before {
   font-weight: 500;
 }
 
-.monitoring-lowest {
+.monitoring-low {
   background: #f0faf0;
   color: #248a3d;
 }
 
-.monitoring-highest {
+.monitoring-high {
   background: #fef0f0;
   color: #d70015;
 }
